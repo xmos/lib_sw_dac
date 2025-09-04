@@ -1,22 +1,21 @@
 # This file relates to internal XMOS infrastructure and should be ignored by external users
 ---
-lib_name: lib_template
+lib_name: lib_sw_dac
 project: '{{lib_name}}'
-title: '{{lib_name}}: Template library'
-version: 1.0.0
+title: '{{lib_name}}: Software DAC'
+version: 0.1.0
 
 documentation:
   exclude_patterns_path: doc/exclude_patterns.inc
-  root_doc: doc/rst/lib_template.rst
+  substitutions_path: doc/substitutions.inc
+  root_doc: doc/rst/lib_sw_dac.rst
   linkcheck_ignore_regex: ['']
-  latex_toc_depth: 3
-  latex_secnum_depth: 3
   cognidox_part_number: XM-XXXXXX-UG
   doxygen_projects:
-    lib_template:
+    lib_sw_dac:
       doxyfile_path: doc/Doxyfile.inc
   pdfs:
-    doc/rst/lib_template.rst:
+    doc/rst/lib_sw_dac.rst:
       pdf_title: '{{title}}'
       pdf_filename: '{{lib_name}}_v{{version}}'
     README.rst:

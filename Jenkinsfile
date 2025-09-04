@@ -23,10 +23,6 @@ pipeline {
             defaultValue: 'v3.1.1',
             description: 'The infr_apps version'
         )
-        choice(
-            name: 'TEST_LEVEL', choices: ['smoke', 'default', 'extended'],
-            description: 'The level of test coverage to run'
-        )
     }
 
     options {
@@ -82,7 +78,6 @@ pipeline {
                         }
                     }
                 }
-
                 stage('Tests') {
                     steps {
                         dir("${REPO_NAME}/tests") {
@@ -90,16 +85,16 @@ pipeline {
                                 createVenv(reqFile: "requirements.txt")
                                 withVenv {
                                     xcoreBuild(archiveBins: false)
-                                    // Use the TEST_LEVEL parameter to control the test coverage
-                                    runPytest("--level=${params.TEST_LEVEL}")
+                                    sh "pytest -vv -n auto --junitxml=pytest_result.xml"
                                 }
                             }
                         }
+                        junit "${REPO_NAME}/tests/**/pytest_*.xml"
                     }
                 }
-
                 stage("Archive sandbox") {
-                    steps {
+                    steps
+                    {
                         archiveSandbox(REPO_NAME)
                     }
                 }
@@ -112,13 +107,9 @@ pipeline {
         } // stage 'Build and test'
 
         stage('🚀 Release') {
-            when {
-                expression { triggerRelease.isReleasable() }
-            }
             steps {
                 triggerRelease()
             }
         }
     } // stages
 } // pipeline
-

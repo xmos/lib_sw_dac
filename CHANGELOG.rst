@@ -1,8 +1,8 @@
-lib_template change log
-=======================
+lib_sw_dac change log
+=====================
 
-1.0.0
+0.1.0
 -----
 
-  * Initial release
+  * Inital engineering version
 

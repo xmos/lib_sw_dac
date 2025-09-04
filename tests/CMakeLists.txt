@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 include($ENV{XMOS_CMAKE_PATH}/xcommon.cmake)
-project(tests)
+project(lib_sw_dac_tests)
 
-add_subdirectory(test_template_pass)
-add_subdirectory(test_template_fail)
+add_subdirectory(timing_test_sf)
+add_subdirectory(test_filter_thdn)
+#add_subdirectory(unit_pre_distort)
+
