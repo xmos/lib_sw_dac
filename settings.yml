@@ -10,7 +10,7 @@ documentation:
   substitutions_path: doc/substitutions.inc
   root_doc: doc/rst/lib_sw_dac.rst
   linkcheck_ignore_regex: ['']
-  cognidox_part_number: XM-XXXXXX-UG
+  cognidox_part_number: XM-015383-UG
   doxygen_projects:
     lib_sw_dac:
       doxyfile_path: doc/Doxyfile.inc
@@ -23,4 +23,4 @@ documentation:
       pdf_filename: '{{lib_name}}_v{{version}}_readme'
       pdf_short: yes
 software:
-  cognidox_part_number: XM-XXXXXX-SM
+  cognidox_part_number: XM-015384-SM
