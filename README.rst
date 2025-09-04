@@ -1,42 +1,45 @@
 :orphan:
 
-##############################
-lib_template: Template library
-##############################
+########################
+lib_sw_dac: Software DAC
+########################
 
 :vendor: XMOS
-:version: 1.0.0
-:scope: General Use
-:description: A template for making XMOS libraries
-:category: General Purpose
-:keywords:
-:devices: xcore-200, xcore.ai
+:version: 0.1.0
+:scope: Demo
+:description: Software DAC for xcore.ai
+:category: Audio
+:keywords: Audio, DAC, PWM
+:devices: xcore.ai
 
 *******
 Summary
 *******
 
-A brief description of the library goes here. This should be a single paragraph.
-This will be the summary that appears on the XMOS website.
+Software DAC for xcore comprising of upsampling, sigma-delta modulator and PWM generation.
 
 ********
 Features
 ********
 
-* A bullet-point list of features of the library goes here.
-* This should be a concise summary of the library's capabilities.
+* Supports 48000, 96000 and 192000 Hz sample rate stereo output
 
 ************
 Known issues
 ************
 
-* None
+* Fixed configuration only currently (SF = Standard Fidelity)
+* 192kHz SD requires 85 MHz thread speed (max 7 threads at 600 MHz core clock)
+* The API requires that the software DAC is continually fed samples at the input
+  sample rate. Failure to do so will result in full scale outputs glitches. Please
+  ensure your application disables the hardware output stage before stopping
+  feeding samples.
 
 ****************
 Development repo
 ****************
 
-* `lib_template <https://www.github.com/xmos/lib_template>`_ (https://www.github.com/xmos/lib_template)
+* `lib_sw_dac <https://www.github.com/xmos/lib_sw_dac>`_
 
 **************
 Required tools
@@ -48,18 +51,22 @@ Required tools
 Required libraries (dependencies)
 *********************************
 
-* `lib_logging <https://www.xmos.com/libraries/lib_logging>`_ (https://www.xmos.com/libraries/lib_logging)
-* `lib_xassert <https://www.xmos.com/libraries/lib_xassert>`_ (https://www.xmos.com/libraries/lib_xassert)
+* None
 
 *************************
 Related application notes
 *************************
 
-* None
+The following application notes use this library:
+
+* AN02020: Adding a software DAC to USB Audio
+
+Please also see the /examples directory for simpler usage examples.
 
 *******
 Support
 *******
 
-This package is supported by XMOS Ltd. Issues can be raised against the software at
-`www.xmos.com/support <https://www.xmos.com/support>`_ or using GitHub `issues <https://github.com/xmos/lib_template/issues>`_.
+This package is supported by XMOS Ltd. Issues can be raised against the software at: http://www.xmos.com/support
+
+

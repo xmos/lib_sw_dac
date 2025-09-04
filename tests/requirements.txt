@@ -19,6 +19,9 @@
 # same modules should appear in the setup.py list as given below.
 pytest==8.3.3
 pytest-xdist==3.6.1
+filelock==3.19.1
+numpy==2.3.2
+scipy==1.16.1
 
 # Development dependencies
 #
@@ -32,4 +35,5 @@ pytest-xdist==3.6.1
 # If this repository uses the setup functionality (e.g., script entry points)
 # of its own setup.py file, then this list must include an entry for that
 # setup.py file, e.g., '-e .' or '-e ./python' (without the quotes).
--e git+ssh://git@github.com/xmos/test_support.git@961532d89a98b9df9ccbce5abd0d07d176ceda40#egg=test_support
+
+-e git+ssh://git@github.com/xmos/test_support.git@v2.0.0#egg=test_support

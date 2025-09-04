@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.21)
+include($ENV{XMOS_CMAKE_PATH}/xcommon.cmake)
+
+project(test_filter_thdn)
+
+set(XMOS_SANDBOX_DIR 		${CMAKE_CURRENT_LIST_DIR}/../../..)
+
+set(APP_HW_TARGET 			XK-EVK-XU316)
+
+set(APP_DEPENDENT_MODULES 	"lib_sw_dac")
+
+set(APP_INCLUDES    		src)
+
+set(COMMON_FLAGS -O3 -g -report)
+
+set(APP_COMPILER_FLAGS_48000 ${COMMON_FLAGS} -DFREQ=48000)
+set(APP_COMPILER_FLAGS_96000 ${COMMON_FLAGS} -DFREQ=96000)
+set(APP_COMPILER_FLAGS_192000 ${COMMON_FLAGS} -DFREQ=192000)
+
+XMOS_REGISTER_APP()
