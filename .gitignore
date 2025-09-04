@@ -16,6 +16,7 @@
 *.pyc
 **/*.egg-info/
 **/.venv*/
+**/.python-version
 
 # XMOS temp files
 **/*build*/*
@@ -44,3 +45,6 @@ doc/_build/pdf/*.pdf
 tests/logs
 tests/pytest_result.xml
 tests/trace.txt
+
+# editor
+**/.vscode
