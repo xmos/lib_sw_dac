@@ -107,6 +107,9 @@ pipeline {
         } // stage 'Build and test'
 
         stage('🚀 Release') {
+            when {
+                expression { triggerRelease.isReleasable() }
+            }
             steps {
                 triggerRelease()
             }

@@ -14,7 +14,6 @@
 #include "sdac_sf.h"
 #include "filter_banks.h"
 #include "sw_dac_conf_default.h"
-#include "clip_and_scale.h"
 #include "pre_distort.h"
 
 
@@ -293,48 +292,6 @@ int filter_x125_16(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sampl
     return n;
 }
 
-
-/* Thoughts on 44100.
-
-upsample   to   705,600 (16x; 2x 2x 2x 2x)
-upsample   to 1,764,000 (2.5x)
-                        Produces blocks of 40, 20, or 10
-downsample to 1,500,000
-                        Produces blocks of 34..35, 17..18, or 8..9
-
-1,470 input samples produces 1,250 output samples (blocks of 10 going in)
-2,940 input samples produces 2,500 output samples
-5,880 input samples produces 5,000 output samples (blocks of 40 going in)
-
-  1,764,000 x 125 = 220,500,000
-220,500,000 / 147 =   1,500,000
-
-Intersperse each sample with 124 zeroes.
-Filter with filter of between 125 x 40 = 5,000 taps
-Subsample 147 x
-
-220,500,000 Hz sample rate
-110,250,000 Hz nyquist
-     22,050 Hz bandwidth per tap (@5,000 taps)
-               1 bins in pass band
-First stop band is 882,000 +/- 22,050 Hz: bins 40 +/- 1               
-Stop bands around 40, 80, 120, 
-*/
-
-#if 0
-static inline int32_t second_order_pre_distort(int32_t v, int32_t two_over_big_number) {
-#ifdef _SECOND_ORDER_PRE_DISTORT
-    int64_t t = v * (int64_t) v;// - max_int * (int64_t) max_int / 2;
-    // s * s is at most 62 bits positive; s * s - ... is at most 61 bits +/-
-    int32_t t_div = t >> 32;   // Divide by (magnitude*2), at most 29 bits +/-
-    int64_t t_div_div = t_div * (int64_t) two_over_big_number + (((int64_t)v) << 32); // x2/130000
-    return t_div_div >> 32; // Finish division
-#else
-    return v;
-#endif
-}
-#endif
-
 void filter_task(software_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     int sample_rate = 48000;
     int32_t data[4][SDAC_BUF_TOTAL];
@@ -384,7 +341,6 @@ void filter_task(software_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
             int n_vec = (n + 7) >> 3;
             // TODO: make pre_distort and clip_and_scale N long, where N = 8, 16, 32.
             for(int c = 0; c < 2; c++) {
-#if 1 // for now - maybe power optimise for no distortion.
                 pre_distort(&data[i][oindex],
                             sd->pre_distort_in[c],
                             sd->pre_distort_pwm_comp_history[c],
@@ -392,15 +348,12 @@ void filter_task(software_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
                             sd->comp_px3_px2_fx2_fx3,
                             n_vec,
                             sd->scale1, sd->scale2);
+                // roll history
                 sd->pre_distort_in               [c][-1] = sd->pre_distort_in               [c][n-1];
                 sd->pre_distort_flat_comp_history[c][-1] = sd->pre_distort_flat_comp_history[c][n-1];
                 sd->pre_distort_pwm_comp_history [c][-1] = sd->pre_distort_pwm_comp_history [c][n-1];
                 sd->pre_distort_pwm_comp_history [c][-2] = sd->pre_distort_pwm_comp_history [c][n-2];
-#else
-#if 0
-                clip_and_scale(&data[i][oindex], sd->pre_distort_in[c], sd->scale1, sd->scale2, n_vec);
-#endif
-#endif
+
                 oindex = SDAC_BUF_R;
             }
             sd->bank = (sd->bank + 1) & mask;
