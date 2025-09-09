@@ -130,16 +130,13 @@ typedef struct {
  * \param  p_x2     PWM (filtered) compensation factor, x^2 term
  *
  * \param  p_x3     PWM (filtered) compensation factor, x^3 term
- *
- * \param  negate   Invert the signal
  */
 void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
                           port_t clk_o, int max_pwm,
                           int modulator_coefficients[6][8],
                           float scale, float limit,
                           float f_x2, float f_x3,
-                          float p_x2, float p_x3,
-                          int negate);
+                          float p_x2, float p_x3);
 
 /**
  * Function that runs a software DAC. Samples are provided over the channel end.
