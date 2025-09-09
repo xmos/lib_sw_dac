@@ -32,7 +32,7 @@ The software defined DAC comprises four major parts:
   In order to achieve this, a *master clock* is used that is a whole
   multiple of the *pwm pulse rate*.
 
-* An extenal analogue hardware and low-pass filter and amplifier that filter out inaudible signals and drive the analogue signal to a headphone or speaker with a suitable voltage and impedance.
+* An external analogue hardware and low-pass filter and amplifier that filter out inaudible signals and drive the analogue signal to a headphone or speaker with a suitable voltage and impedance.
 
 
 These four parts are shown in :numref:`sw_dac_stages`.
@@ -128,6 +128,12 @@ and the values -1, +1, -2, +2 etc will be used. If the number of PWM levels
 is even, then the two middle values will be +/-0.5, and the values -1.5,
 +1.5, -2.5, +2.5 etc will be used.
 
+.. note::
+    At power on, the ``xcore.ai`` GPIO ports are set to high impedance with a
+    weak pull-down enabled. This will define the initial state of the output 
+    ports until the software DAC is configured and operating.
+
+
 Master clock frequency
 ----------------------
 
@@ -186,13 +192,8 @@ Signal negation
 ---------------
 
 Depending on the final output circuitry, it may be desirable to invert the 
-output signal. An optional negate paramater is available to do this,
+output signal. An optional negate parameter is available to do this,
 see :c:macro:`SW_DAC_NEGATE`.
-
-.. note::
-    At power on, the ``xcore.ai`` GPIO ports are set to high impedance with a
-    weak pull-down enabled. This will define the initial state of the output 
-    ports until the software DAC is configured and operating.
 
 Pre-distortion
 --------------
@@ -221,7 +222,7 @@ Generation of master clock and synchronisation
 
 The master clock may be generated outside the XCORE (using a crystal
 oscillator or external PLL), or inside the XCORE (using the secondary PLL
-in the xcore or using the core PLL).
+in the XCORE or using the core PLL).
 
 An externally generated PLL can support lower jitter than an internally generated
 PLL creating a better noise floor.
