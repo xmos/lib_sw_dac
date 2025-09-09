@@ -17,15 +17,12 @@
 #include "pre_distort.h"
 
 
-static void init_ports(port_t ports[2], xclock_t clk, port_t clock_out) {
+static void init_ports(port_t dac_ports[2], xclock_t clk) {
     for(int i = 0; i < 2; i++) {
-        port_start_buffered(ports[i], 32);
-        port_set_clock(ports[i], clk);
-        port_clear_buffer(ports[i]);
+        port_start_buffered(dac_ports[i], 32);
+        port_set_clock(dac_ports[i], clk);
+        port_clear_buffer(dac_ports[i]);
     }
-    port_enable(clock_out);
-    port_set_clock(clock_out, clk);
-    port_set_out_clock(clock_out);
 }
 
 static uint64_t mkmsk_long(int val) {
@@ -38,13 +35,14 @@ static uint64_t mkmsk_long(int val) {
 
 #include <stdio.h>
 
-void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
-                          port_t clock_out, int pwm_levels, int sd_coeffs[6][8],
+void software_dac_sf_init(software_dac_sf_t *sd,
+                          port_t dac_ports[2], xclock_t clk,
+                          int pwm_levels, int sd_coeffs[6][8],
                           float scale, float limit,
                           float f_x2, float f_x3,
                           float p_x2, float p_x3) {
     memset(sd, 0, sizeof(*sd));
-    init_ports(ports, clk, clock_out);
+    init_ports(dac_ports, clk);
     sd->sd_coeffs = &sd_coeffs[0][0];
     const int negate = SW_DAC_NEGATE ? -1 : 1;
     
@@ -71,7 +69,7 @@ void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
     }
     assert(pwm_levels <= PWM_MAX_LEN);
     sd->clock_block = clk;
-    memcpy(&sd->out_ports[0], ports, 2*sizeof(int));
+    memcpy(&sd->out_ports[0], dac_ports, 2*sizeof(int));
 
     // PWMs are centered around the high bit
 
