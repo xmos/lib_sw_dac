@@ -90,20 +90,17 @@ typedef struct {
  * Function that initialises a software DAC. It requires an array of two
  * ports (Left and Right, both 1-bit ports), and a clock block.
  *
- * \param   sd     Software DAC structure, typically allocated on the stack
+ * \param   sd          Software DAC structure, typically allocated on the stack
  *
- * \param   ports  Array of two port identifiers. The ports should not be
- *                 initialised or enabled. Ie, just pass {XS1_PORT_1B, XS1_PORT_1A}
- *                 from C
+ * \param   dac_ports   Array of two port identifiers. The ports should not be
+ *                      initialised or enabled. Ie, just pass {XS1_PORT_1B, XS1_PORT_1A}
+ *                      from C
  *
- * \param   clk    A clock block for the software DAC to use. It will run
- *                 at 50 MHz but will not be started until the DAC is running.
+ * \param   clk         A clock block for the software DAC to use. It will run
+ *                      at 50 MHz but will not be started until the DAC is running.
  *
- * \param   clk_o  Port identifier where output of clock should be routed to.
- *                 To be deleted.
- *
- * \param   max_pwm number of levels in PWM. Set to an even number to use half
- *                  levels and maximum dynamic range
+ * \param   max_pwm     number of levels in PWM. Set to an even number to use half
+ *                      levels and maximum dynamic range
  *
  * \param   modulator_coefficients  matrix with modular coefficients
  *                  The ``_sf`` version uses a sixth order filter and
@@ -130,16 +127,15 @@ typedef struct {
  * \param  p_x2     PWM (filtered) compensation factor, x^2 term
  *
  * \param  p_x3     PWM (filtered) compensation factor, x^3 term
- *
- * \param  negate   Invert the signal
  */
-void sw_dac_sf_init(sw_dac_sf_t *sd, port_t ports[2], xclock_t clk,
-                          port_t clk_o, int max_pwm,
-                          int modulator_coefficients[6][8],
-                          float scale, float limit,
-                          float f_x2, float f_x3,
-                          float p_x2, float p_x3,
-                          int negate);
+void sw_dac_sf_init(sw_dac_sf_t *sd,
+                    port_t dac_ports[2],
+                    xclock_t clk,
+                    int max_pwm,
+                    int modulator_coefficients[6][8],
+                    float scale, float limit,
+                    float f_x2, float f_x3,
+                    float p_x2, float p_x3);
 
 /**
  * Function that runs a software DAC. Samples are provided over the channel end.

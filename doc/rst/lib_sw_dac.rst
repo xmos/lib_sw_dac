@@ -91,6 +91,7 @@ The digital pipeline starts by removing the DC component in the signal
 using a high-pass filter with a cut-off frequency of around 1 Hz.
 Performing this task digitally can reduce BOM cost by removing the
 need for AC coupled stages. DC removal can be switched off if it is undesirable.
+For details, see :c:macro:`SW_DAC_DC_REMOVAL_TIME_CONSTANT`.
 
 Up-sampling
 -----------
@@ -185,28 +186,35 @@ Signal negation
 ---------------
 
 Depending on the final output circuitry, it may be desirable to invert the 
-output signal. An optional negate paramater is available to do this.
+output signal. An optional negate paramater is available to do this,
+see :c:macro:`SW_DAC_NEGATE`.
 
 .. note::
     At power on, the ``xcore.ai`` GPIO ports are set to high impedance with a
     weak pull-down enabled. This will define the initial state of the output 
     ports until the software DAC is configured and operating.
 
-Pre-distortion parameters
--------------------------
+Pre-distortion
+--------------
 
-Before the signal is passed into the modulator it can be pre-distorted. We
-provide four pre-distortion values. They are linear in the signal:
+Before the signal is passed into the modulator it can be pre-distorted.
+Pre-distortion includes 2 types of signal compensation:
 
-* squared
+* Flat compensation
+* PWM compensation
 
-* cubed
+Flat compensation applies a fixed transformation to the input signal 
+to counteract non-linearities introduced by the analogue output stage.
+This adjustment is hardware-dependent and helps reduce distortion across
+the entire signal range.
 
-* squared and filtered with a high pass filter
+PWM compensation modifies the input signal based on the characteristics of the
+modulation matrix and PWM process, typically tailored to correct specific artifacts
+introduced by the digital modulator, improving overall signal fidelity.
 
-* cubed and filtered with a high pass filter
-
-TODO: SOMETHING ABOUT UNIT OF THESE NUMBERS
+Both are implemented in the form of ``c2 * x^2 + c3 * x^3``,
+with a high-pass filter for the PWM compensation.
+If the user wishes to disable pre-distortion, they would need to set all coefficients to zero.
 
 Generation of master clock and synchronisation
 ----------------------------------------------
@@ -262,13 +270,17 @@ introduces a delay of 6/1.5 MHz = 4 us.
 The default pre-distortion values are tuned to remove second and third harmonics
 from this modulator:
 
-* flat_x2: xxx
+* flat_x2: 1.0/120000
 
-* flat_x3: xxx
+* flat_x3: -1.0/250000
 
-* filt_x2: xxx
+* pwm_x2: 3.0/157
 
-* filt_x3: xxx
+* pwm_x3: 0.63/157
+
+* scale: 2.8544
+
+* limit: 2.8684735298
 
 Upsampler filter_x125_4
 -----------------------
@@ -429,13 +441,11 @@ you wish to use default settings and remove the compiler warning.
 
 .. doxygendefine:: SW_DAC_DC_REMOVAL_TIME_CONSTANT
 
-.. doxygendefine:: SW_DAC_PRE_DISTORT
-
 The full listing of ``sw_dac_conf_default.h`` is shown below.
 
 .. literalinclude:: ../../lib_sw_dac/api/sw_dac_conf_default.h
     :language: c
-    :lines: 10-33
+    :lines: 12-27
 
 |newpage|
 
