@@ -7,13 +7,13 @@
 #include "sdac_sf.h"
 
 #define NSTACKWORDS     18
-#define FUNCTION_NAME software_dac_12_5
+#define FUNCTION_NAME sigma_delta_12_5
 
     .cc_top FUNCTION_NAME.function
     .type   FUNCTION_NAME,@function
 
 
-    // software_dac_50(sdac_t *ptr, clk_block_t *cb)
+    // sigma_delta_12_5(sdac_t *ptr, clk_block_t *cb)
     
     // Scratch registers:    r2 r3 r11
 
@@ -65,13 +65,13 @@ FUNCTION_NAME:
     .cc_bottom FUNCTION_NAME.function
 
 #undef FUNCTION_NAME
-#define FUNCTION_NAME software_dac_1_5
+#define FUNCTION_NAME sigma_delta_1_5
 
     .cc_top FUNCTION_NAME.function
     .type   FUNCTION_NAME,@function
 
 
-    // software_dac_50(sdac_t *ptr, clk_block_t *cb)
+    // sigma_delta_1_5(sdac_t *ptr, clk_block_t *cb)
     
     // Scratch registers:    r2 r3 r11
 

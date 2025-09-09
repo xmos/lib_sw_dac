@@ -325,7 +325,7 @@ Performance Considerations
 **************************
 
 The default headphone amplifier configuration produces audio performance 
-characterised by :numref:`default_performance` which is for software_dac_sf()
+characterised by :numref:`default_performance` which is for sw_dac_sf()
 where `sf` means standard fidelity:
 
 .. table:: Typical performance
@@ -393,7 +393,7 @@ less noise, harmonics, and/or cross-talk.
 API Reference
 *************
 
-The Software DAC main task, ``software_dac_sf()``, comprises of two threads which can be seen, alongside the sample producing app, in :numref:`software_dac_usage`
+The Software DAC main task, ``sw_dac_sf()``, comprises of two threads which can be seen, alongside the sample producing app, in :numref:`software_dac_usage`
 
 
 .. _software_dac_usage:
@@ -455,10 +455,10 @@ Supporting types
 
 The following type is used to configure the software DAC components.
 
-.. doxygenstruct:: software_dac_sf_t
+.. doxygenstruct:: sw_dac_sf_t
 
 It is not necessary to directly modify this structure and can be considered a black-box.
-Please configure it using the :ref:`software_dac_sf_init()<init_api_sf>` function.
+Please configure it using the :ref:`sw_dac_sf_init()<init_api_sf>` function.
 
 
 Creating a software DAC instance
@@ -466,11 +466,11 @@ Creating a software DAC instance
 
 .. _init_api_sf:
 
-.. doxygenfunction:: software_dac_sf_init
+.. doxygenfunction:: sw_dac_sf_init
 
-.. doxygenfunction:: software_dac_sf
+.. doxygenfunction:: sw_dac_sf
 
-For the initialisation of the structure using ``software_dac_sf_init()`` one can choose from the following
+For the initialisation of the structure using ``sw_dac_sf_init()`` one can choose from the following
 pre-defined modulators:
 
 .. doxygenvariable:: sd_coeffs_o6_f1_5_n8

@@ -84,7 +84,7 @@ typedef struct {
     int32_t comp_px3_px2_fx2_fx3[32];
 
     int sigma_delta_state_array[CHANNELS][11];  // TODO: make this 10 (8 + (8-6))
-} software_dac_sf_t;
+} sw_dac_sf_t;
 
 /**
  * Function that initialises a software DAC. It requires an array of two
@@ -128,14 +128,14 @@ typedef struct {
  *
  * \param  p_x3     PWM (filtered) compensation factor, x^3 term
  */
-void software_dac_sf_init(software_dac_sf_t *sd,
-                          port_t dac_ports[2],
-                          xclock_t clk,
-                          int max_pwm,
-                          int modulator_coefficients[6][8],
-                          float scale, float limit,
-                          float f_x2, float f_x3,
-                          float p_x2, float p_x3);
+void sw_dac_sf_init(sw_dac_sf_t *sd,
+                    port_t dac_ports[2],
+                    xclock_t clk,
+                    int max_pwm,
+                    int modulator_coefficients[6][8],
+                    float scale, float limit,
+                    float f_x2, float f_x3,
+                    float p_x2, float p_x3);
 
 /**
  * Function that runs a software DAC. Samples are provided over the channel end.
@@ -148,20 +148,20 @@ void software_dac_sf_init(software_dac_sf_t *sd,
  * the channel end, otherwise a big pop may happen.
  * 
  * \param   sd     Software DAC structure. This must have been initialised with 
- *                 software_dac_init()
+ *                 sw_dac_init()
  * 
  * \param   ce     Channel end over which samples are supplied
  *                 Samples must be supplied at exactly 48 kHz according to the
  *                 external clock. First Left then Right.
  */
 #ifdef __DOXYGEN__
-void software_dac_sf(software_dac_sf_t *sd, chanend_t ce);
+void sw_dac_sf(sw_dac_sf_t *sd, chanend_t ce);
 #else
-DECLARE_JOB(software_dac_sf, (software_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
+DECLARE_JOB(sw_dac_sf, (sw_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
 #endif
 /**
- * Assembly kernel that runs the software delta.
+ * Assembly kernel that runs the sigma-delta.
  */
-void software_dac_1_5(software_dac_sf_t *sd, chanend_t ce); // does not return
+void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
 
 #endif
