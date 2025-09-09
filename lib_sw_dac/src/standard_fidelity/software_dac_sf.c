@@ -42,12 +42,12 @@ void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
                           port_t clock_out, int pwm_levels, int sd_coeffs[6][8],
                           float scale, float limit,
                           float f_x2, float f_x3,
-                          float p_x2, float p_x3,
-                          int negate) {
+                          float p_x2, float p_x3) {
     memset(sd, 0, sizeof(*sd));
     init_ports(ports, clk, clock_out);
     sd->sd_coeffs = &sd_coeffs[0][0];
-    negate = negate ? -1 : 1;
+    const int negate = SW_DAC_NEGATE ? -1 : 1;
+    
     for(int i = 0; i < 8; i++) {   // TODO: the compiler probably hoists these constants.
         sd->scale1[i] = 0x40000000 * scale / limit * 2;
         sd->scale2[i] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
