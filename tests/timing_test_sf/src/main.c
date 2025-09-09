@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
     clock_set_source_clk_ref(clk);
     clock_set_divide(clk, 4 / 2); // 25MHz
     
-    software_dac_sf_t sd;
-    software_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
+    sw_dac_sf_t sd;
+    sw_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
                          2.8544, 2.8684735298,      // scale, limit
                          1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                          3.0/157, 0.63/157,         // pwm comp x2, x3
@@ -66,12 +66,12 @@ int main(int argc, char *argv[]) {
         PJOB(burn,              ()),
         PJOB(burn,              ()),
         PJOB(test_app,          (c_sd.end_a, sample_rate, burn, n_loops)),
-        PJOB(software_dac_sf,   (&sd, c_sd.end_b))
+        PJOB(sw_dac_sf,         (&sd, c_sd.end_b))
         );
     } else {
     PAR_JOBS(
         PJOB(test_app,          (c_sd.end_a, sample_rate, burn, n_loops)),
-        PJOB(software_dac_sf,   (&sd, c_sd.end_b))
+        PJOB(sw_dac_sf,         (&sd, c_sd.end_b))
         );
 
     }

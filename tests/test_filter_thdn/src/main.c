@@ -17,17 +17,17 @@ FILE * _fopen(char * fname, char* mode) {
 }
 
 #if FREQ == 48000
-extern int filter_x125_4(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+extern int filter_x125_4(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_4
 #define mask 3
 
 #elif FREQ == 96000
-extern int filter_x125_8(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+extern int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_8
 #define mask 7
 
 #elif FREQ == 192000
-extern int filter_x125_16(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+extern int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_16
 #define mask 15
 
@@ -36,7 +36,7 @@ extern int filter_x125_16(software_dac_sf_t *sd, int32_t *output, int ch, int32_
 #endif
 
 int main(void){
-  software_dac_sf_t sd;
+  sw_dac_sf_t sd;
   xclock_t clk = XS1_CLKBLK_1;
   port_t ports[2] = {XS1_PORT_1M, XS1_PORT_1O};   // L and R outputs
   port_t clk_in = XS1_PORT_1D;                    // 24MHz clock in from App PLL
@@ -47,7 +47,7 @@ int main(void){
   clock_enable(clk);
   clock_set_source_port(clk, clk_in);
 
-  software_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
+  sw_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
                          2.8544, 2.8684735298,      // scale, limit
                          1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                          3.0/157, 0.63/157,         // pwm comp x2, x3

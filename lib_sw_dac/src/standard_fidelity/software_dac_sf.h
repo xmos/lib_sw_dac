@@ -84,7 +84,7 @@ typedef struct {
     int32_t comp_px3_px2_fx2_fx3[32];
 
     int sigma_delta_state_array[CHANNELS][11];  // TODO: make this 10 (8 + (8-6))
-} software_dac_sf_t;
+} sw_dac_sf_t;
 
 /**
  * Function that initialises a software DAC. It requires an array of two
@@ -133,7 +133,7 @@ typedef struct {
  *
  * \param  negate   Invert the signal
  */
-void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
+void sw_dac_sf_init(sw_dac_sf_t *sd, port_t ports[2], xclock_t clk,
                           port_t clk_o, int max_pwm,
                           int modulator_coefficients[6][8],
                           float scale, float limit,
@@ -152,20 +152,20 @@ void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
  * the channel end, otherwise a big pop may happen.
  * 
  * \param   sd     Software DAC structure. This must have been initialised with 
- *                 software_dac_init()
+ *                 sw_dac_init()
  * 
  * \param   ce     Channel end over which samples are supplied
  *                 Samples must be supplied at exactly 48 kHz according to the
  *                 external clock. First Left then Right.
  */
 #ifdef __DOXYGEN__
-void software_dac_sf(software_dac_sf_t *sd, chanend_t ce);
+void sw_dac_sf(sw_dac_sf_t *sd, chanend_t ce);
 #else
-DECLARE_JOB(software_dac_sf, (software_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
+DECLARE_JOB(sw_dac_sf, (sw_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
 #endif
 /**
- * Assembly kernel that runs the software delta.
+ * Assembly kernel that runs the sigma-delta.
  */
-void software_dac_1_5(software_dac_sf_t *sd, chanend_t ce); // does not return
+void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
 
 #endif

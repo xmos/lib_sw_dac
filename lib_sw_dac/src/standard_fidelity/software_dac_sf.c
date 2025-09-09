@@ -38,7 +38,7 @@ static uint64_t mkmsk_long(int val) {
 
 #include <stdio.h>
 
-void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
+void sw_dac_sf_init(sw_dac_sf_t *sd, port_t ports[2], xclock_t clk,
                           port_t clock_out, int pwm_levels, int sd_coeffs[6][8],
                           float scale, float limit,
                           float f_x2, float f_x3,
@@ -118,10 +118,10 @@ void software_dac_sf_init(software_dac_sf_t *sd, port_t ports[2], xclock_t clk,
     }
 }
 
-DECLARE_JOB(filter_task,      (software_dac_sf_t *, chanend_t, chanend_t));
-DECLARE_JOB(sigma_delta_task, (software_dac_sf_t *, chanend_t));
+DECLARE_JOB(filter_task,      (sw_dac_sf_t *, chanend_t, chanend_t));
+DECLARE_JOB(sigma_delta_task, (sw_dac_sf_t *, chanend_t));
 
-static inline int filter_x125_64_i16_o32_n16_phased(software_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
+static inline int filter_x125_64_i16_o32_n16_phased(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
     switch(sd->bank) {
     case 0:
         filter_x125_64_i4_o8_n16_phase_0123489cde(&output[0],  samples,    &filter_banks_125_64_banks[0][0][0]); // 0
@@ -157,7 +157,7 @@ static inline int filter_x125_64_i16_o32_n16_phased(software_dac_sf_t *sd, int32
     (void)ch; // TODO remove this argument from function if not needed
 }
 
-static inline int filter_x125_64_i8_o16_n16_phased(software_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
+static inline int filter_x125_64_i8_o16_n16_phased(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
     int32_t *filter_bank  = &filter_banks_125_64_banks[2*sd->bank+0][0][0];
     int32_t *filter_bank1 = &filter_banks_125_64_banks[2*sd->bank+1][0][0];
     switch(sd->bank) {
@@ -195,7 +195,7 @@ static inline int filter_x125_64_i8_o16_n16_phased(software_dac_sf_t *sd, int32_
     (void)ch; // TODO remove this argument from function if not needed
 }
 
-static inline int filter_x125_64_i4_o8_n16_phased(software_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
+static inline int filter_x125_64_i4_o8_n16_phased(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t samples[16]) {
     int32_t *filter_bank = &filter_banks_125_64_banks[sd->bank][0][0];
     switch(sd->bank) {
     case 5:
@@ -236,7 +236,7 @@ static inline int filter_x125_64_i4_o8_n16_phased(software_dac_sf_t *sd, int32_t
 #define DC_REMOVAL_ALPHA_96  (DC_REMOVAL_ALPHA_48 >> 1)
 #define DC_REMOVAL_ALPHA_192 (DC_REMOVAL_ALPHA_48 >> 2)
 
-static int dc_removal(software_dac_sf_t *sd, int ch, int sample, int alpha) {
+static int dc_removal(sw_dac_sf_t *sd, int ch, int sample, int alpha) {
     int average = sd->average[ch];
     sd->average[ch] = (average * (int64_t) (uint32_t) ~alpha + sample * (int64_t) alpha) >> 32;
     return sample - average;
@@ -248,14 +248,14 @@ static int dc_removal(software_dac_sf_t *sd, int ch, int sample, int alpha) {
 #define DC_REMOVAL_ALPHA_96  0
 #define DC_REMOVAL_ALPHA_192 0
 
-static int dc_removal(software_dac_sf_t *sd, int ch, int sample, int alpha) {
+static int dc_removal(sw_dac_sf_t *sd, int ch, int sample, int alpha) {
     return sample;
 }
 
 #endif
 
 // times 125 divide by 4: 48 -> 1500
-int filter_x125_4(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x125_4(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][39] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_48);
     filter_x2_i1_o2_n80(&sd->filter1[ch][14], sd->filter0[ch], &filter_hashed_81_2[0][0][0]);
     filter_x2_i2_o4_n32(&sd->filter2[ch][12], sd->filter1[ch], &filter_hashed_25_4[0][0][0]);      // 25_4 is incorrectly defined and duplicated
@@ -265,7 +265,7 @@ int filter_x125_4(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample
 }
 
 // times 125 divide by 8: 96 -> 1500
-int filter_x125_8(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][15] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_96);
     // Input samples filter0[0..15], Two FIRs (even odd) on [0..15] produce two samples
     // Output samples go into filter1[7..8], so that there are 9 samples in filter1
@@ -280,7 +280,7 @@ int filter_x125_8(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample
 }
 
 // times 125 divide by 16: 192 -> 1500
-int filter_x125_16(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][7] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_192);;
     // Input samples filter0[0..7], Two FIRs (even odd) on [0..7] produce two samples
     // Output samples go into filter1[7..8], so that there are 9 samples in filter1
@@ -292,7 +292,7 @@ int filter_x125_16(software_dac_sf_t *sd, int32_t *output, int ch, int32_t sampl
     return n;
 }
 
-void filter_task(software_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
+void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     int sample_rate = 48000;
     int32_t data[4][SDAC_BUF_TOTAL];
     memset(data, 0, sizeof(data));
@@ -380,11 +380,11 @@ void filter_task(software_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     chanend_out_control_token(c_out, 1);
 }
 
-void sigma_delta_task(software_dac_sf_t *sd, chanend_t c_in) {
-    software_dac_1_5(sd, c_in);
+void sigma_delta_task(sw_dac_sf_t *sd, chanend_t c_in) {
+    sigma_delta_1_5(sd, c_in);
 }
 
-void software_dac_sf(software_dac_sf_t *sd, chanend_t c_in) {
+void sw_dac_sf(sw_dac_sf_t *sd, chanend_t c_in) {
     channel_t c = chan_alloc();
 
     PAR_JOBS(

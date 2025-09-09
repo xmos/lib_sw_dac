@@ -45,7 +45,7 @@ void main_tile_0(chanend_t c_sd) {
 
 
 void main_tile_1(chanend_t c_sd) {
-    software_dac_sf_t sd;
+    sw_dac_sf_t sd;
     xclock_t clk = XS1_CLKBLK_1;
     port_t ports[2] = {XS1_PORT_1M, XS1_PORT_1O};   // L and R outputs
     port_t clk_in = XS1_PORT_1D;                    // 24MHz clock in from App PLL
@@ -61,7 +61,7 @@ void main_tile_1(chanend_t c_sd) {
     write_sswitch_reg(get_local_tile_id(), XS1_SSWITCH_SS_APP_PLL_FRAC_N_DIVIDER_NUM, APP_PLL_FRAC_REG);
 
 
-    software_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
+    sw_dac_sf_init(&sd, ports, clk, clk_out, 8, sd_coeffs_o6_f1_5_n8,
                          2.8544, 2.8684735298,      // scale, limit
                          1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                          3.0/157, 0.63/157,         // pwm comp x2, x3
@@ -69,5 +69,5 @@ void main_tile_1(chanend_t c_sd) {
 
     chanend_out_word(c_sd, 0); // Send word to say ready because PLL setup takes time
 
-    software_dac_sf(&sd, c_sd);
+    sw_dac_sf(&sd, c_sd);
 }
