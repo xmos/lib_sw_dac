@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import resample_poly
 from scipy.io import wavfile
 from statistics import mean
+from collections import Counter
 
 def parse_log_file(filename="output.txt"):
     pwm_lookup = {}
@@ -85,4 +86,7 @@ if __name__ == "__main__":
     print("192kHz output shape:", y_192k.shape)
 
     print(f'pwms_per_loop ave:{mean(pwms_per_loop)} min:{min(pwms_per_loop)} max:{max(pwms_per_loop)}')
+    histogram = Counter(pwms_per_loop)
+    print(f'pwms_per_loop histogram: {histogram}')
+
     print(f"Latest loop number: {latest_loop}")
