@@ -42,7 +42,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
                     float f_x2, float f_x3,
                     float p_x2, float p_x3) {
     memset(sd, 0, sizeof(*sd));
+#if !defined(SW_DAC_SD_TEST_MODE)
     init_ports(dac_ports, clk);
+#endif
     sd->sd_coeffs = &sd_coeffs[0][0];
     const int negate = SW_DAC_NEGATE ? -1 : 1;
     

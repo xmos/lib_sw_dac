@@ -60,7 +60,10 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if !defined(NO_OUTPUT)
+
+#if defined(SW_DAC_SD_TEST_MODE)
+    out res[r7], r1
+#else
     outpw res[r7], r1, 16
 #endif
     
@@ -82,7 +85,9 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if !defined(NO_OUTPUT)
+#if defined(SW_DAC_SD_TEST_MODE)
+    out res[r8], r1
+#else
     outpw res[r8], r1, 16
 #endif
     
