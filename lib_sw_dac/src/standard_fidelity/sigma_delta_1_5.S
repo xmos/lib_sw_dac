@@ -35,14 +35,6 @@ FUNCTION_NAME:
 .Linner_loop:
     { ldw r1, dp[SDAC_BUF_L]     ; sub r9, r9, 1 }
 
-#if defined(NO_OUTPUT)
-    ldw  r11, r5[2]
-    ldw  r11, r5[3]
-    ldw  r11, r5[4]
-    ldw  r11, r5[5]
-    ldw  r11, r5[6]
-    ldw  r11, r5[7]
-#endif
 // Left channel:
     { stw r1, r5[0]             ; ldc r11, 31 }             // Store input value into state vector
     { ld8u r1, r5[r11]          ; ldap r11, min_max_table } // Load top byte of output value
@@ -60,9 +52,7 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if !defined(NO_OUTPUT)
     outpw res[r7], r1, 16
-#endif
     
     { ldw r1, dp[SDAC_BUF_R]    ; nop             }
 // Right channel:
@@ -82,9 +72,7 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if !defined(NO_OUTPUT)
     outpw res[r8], r1, 16
-#endif
     
     { bt  r9, .Linner_loop       ; ldaw dp, dp[SDAC_BUF_STEP] }
     { bu  .Louter_loop           ; in r11, res[r0] }
