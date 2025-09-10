@@ -23,13 +23,13 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
 
     int n_sd_loops = 5;
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
-        printf("Loop: %d\n", loop_count);
+        printf("loop: %d\n", loop_count);
 
         // Send to SD modulator/PWM
         data[i][SDAC_BUF_N] = n_sd_loops;
 
         chanend_out_word(c_sd_in, (int) &data[i][0]);
-        i = (i+1) & 3; // Modulo 4 add
+        i = (i+1) & 3; // i = (i+1)%4
 
         for(int n_outs = 0; n_outs < n_sd_loops; n_outs++){
             unsigned pwm_l = chanend_in_word(port_l);
@@ -39,7 +39,6 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
     }
 
     printf("Completed test app\n");
-
     _Exit(0);
 }
 
@@ -54,6 +53,10 @@ void run_sd_pwm(sw_dac_sf_t *sd, chanend_t c_in) {
 }
 
 int main(int argc, char *argv[]) {
+    if(argc <=1 || argc > 3){
+        printf("Error - need to pass burn and loops as args\n");
+        _Exit(-1);
+    }
     int burn = atoi(argv[1]);
     int n_loops = atoi(argv[2]);
 

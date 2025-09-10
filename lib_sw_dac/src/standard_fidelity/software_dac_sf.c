@@ -103,7 +103,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (1 << (2*pwm_max)) | (mask << (1 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-//            printf("%08x\n", (int) sd->pwm_lookup[i]);
+#if defined(SW_DAC_SD_TEST_MODE)
+            printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
+#endif
         }
     } else {
         sd->pwm_lookup = &sd->pwm_lookup_table[pwm_max];
@@ -113,7 +115,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (3 << (2*pwm_max)) | (mask << (2 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-//        printf("%08x\n", (int) sd->pwm_lookup[i]);
+#if defined(SW_DAC_SD_TEST_MODE)
+            printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
+#endif
         }
     }
 }
