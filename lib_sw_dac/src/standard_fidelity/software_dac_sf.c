@@ -34,12 +34,18 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
                     int pwm_levels, int sd_coeffs[6][8],
                     float scale, float limit,
                     float f_x2, float f_x3,
-                    float p_x2, float p_x3) {
+                    float p_x2, float p_x3)
+{
     memset(sd, 0, sizeof(*sd));
+
     init_ports(dac_ports, clk);
+    sd->clock_block = clk;
+    memcpy(&sd->out_ports[0], dac_ports, 2 * sizeof(port_t));
+
     sd->sd_coeffs = &sd_coeffs[0][0];
     const int negate = SW_DAC_NEGATE ? -1 : 1;
-    
+
+    // Init pre_distort components, all q30
     for(int i = 0; i < 8; i++) {   // TODO: the compiler probably hoists these constants.
         sd->scale1[i] = 0x40000000 * scale / limit * 2;
         sd->scale2[i] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
@@ -48,22 +54,19 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
         sd->comp_px3_px2_fx2_fx3[i+8*2] = 0x40000000 * f_x2;
         sd->comp_px3_px2_fx2_fx3[i+8*3] = 0x40000000 * f_x3;
     }
-//    printf("%d %d %d %d\n", sd->comp_px3_px2_fx2_fx3[0], sd->comp_px3_px2_fx2_fx3[8], sd->comp_px3_px2_fx2_fx3[16], sd->comp_px3_px2_fx2_fx3[24]);
+    // Init filter and pre_distort pointers
     for(int i = 0; i < CHANNELS; i++) {
         sd->filter0[i] = &sd->filter_input[i][1];
         sd->filter1[i] = &sd->filter_stage1_out[i][2];
         sd->filter2[i] = &sd->filter_stage2_out[i][4];
         sd->filter3[i] = &sd->filter_stage3_out[i][0];
         sd->filter4[i] = &sd->filter_stage4_out[i][0];
-        sd->filter5[i] = &sd->filter_stage5_out[i][0];
         sd->sigma_delta_state[i] = &sd->sigma_delta_state_array[i][0];
         sd->pre_distort_in[i] = &sd->pre_distort_in_[i][1];
         sd->pre_distort_pwm_comp_history[i] = &sd->pre_distort_pwm_comp_history_[i][2];
         sd->pre_distort_flat_comp_history[i] = &sd->pre_distort_flat_comp_history_[i][1];
     }
     xassert(pwm_levels <= PWM_MAX_LEN);
-    sd->clock_block = clk;
-    memcpy(&sd->out_ports[0], dac_ports, 2*sizeof(int));
 
     // PWMs are centered around the high bit
 

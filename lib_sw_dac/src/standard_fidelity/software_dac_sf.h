@@ -20,29 +20,28 @@
 typedef struct {
     // These are variables used in the assembly code
     // Many of them point to data further on
-    
+
+    // Sigma-delta
     int *sigma_delta_state[CHANNELS];
     int32_t *pwm_lookup;
     xclock_t clock_block;
-    chanend_t input_chan_end; // For use inside run_dac
-    int bank;
     int *sd_coeffs;
-    port_t out_ports[CHANNELS];  // Two ports
+    port_t out_ports[CHANNELS];
+
+    // Upsampling filters
     int32_t *filter0[CHANNELS];
     int32_t *filter1[CHANNELS];
     int32_t *filter2[CHANNELS];
     int32_t *filter3[CHANNELS];
     int32_t *filter4[CHANNELS];
-    int32_t *filter5[CHANNELS];
-    
+    int bank;
+
+    // DC removal
+    int average[CHANNELS];
+
     // Actual data starts here
 
-    int average[CHANNELS];
-    
     int32_t pwm_lookup_table[PWM_MAX_LEN];
-    
-    // Must be multiple of 25 plus 7 overhang for VSTR
-    int circular_buffer[100 * 2 + 7];
     
     // This is the input to filter_2x and needs a 40 long buffer
     // The shuffle writes to element [-1..38] inclusive
@@ -68,10 +67,6 @@ typedef struct {
     // This is the output of filter_16x
     // It contains 24 samples. It writes to the last 16. 8 are history
     int32_t filter_stage4_out[CHANNELS][24];
-
-    // This is the output of filter_125_3x
-    // It contains 41 or 42 samples.
-    int32_t filter_stage5_out[CHANNELS][42];
     
     int32_t pre_distort_in_[CHANNELS][33];
     int32_t pre_distort_pwm_comp_history_[CHANNELS][34];

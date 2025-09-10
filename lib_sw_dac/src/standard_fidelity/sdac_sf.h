@@ -7,13 +7,10 @@
 
 #define SDAC_CLOCK_BLOCK 3
 
-#define SDAC_INPUT_CHANE 4
+#define SDAC_SD_COEFFS   4
 
-#define SDAC_BANK        5
-
-#define SDAC_SD_COEFFS   6
-#define SDAC_OUT_PORTS_L 7   // Two ports
-#define SDAC_OUT_PORTS_R 8
+#define SDAC_OUT_PORTS_L 5   // Two ports
+#define SDAC_OUT_PORTS_R 6
 
 
 
