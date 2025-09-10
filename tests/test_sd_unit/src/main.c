@@ -21,37 +21,20 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
     int i = 0;
     int32_t data[4][SDAC_BUF_TOTAL] = {{0}};
 
-    int n = 1;
-    data[i][SDAC_BUF_N] = n;
+    int n_sd_loops = 5;
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
-        // Send to SD modulator/PWM
-
         printf("Loop: %d\n", loop_count);
+
+        // Send to SD modulator/PWM
+        data[i][SDAC_BUF_N] = n_sd_loops;
+
         chanend_out_word(c_sd_in, (int) &data[i][0]);
-        i = (i+1) & 3;
+        i = (i+1) & 3; // Modulo 4 add
 
-        // Poll for output on ports (which are channel ends in this case - Note -DSW_DAC_SD_TEST_MODE=1)
-
-        int op_received = 1;
-        
-        while(op_received){
-            SELECT_RES(
-            CASE_THEN(port_l, event_sd_out),
-            DEFAULT_THEN(no_sd_out))
-            {
-                no_sd_out:
-                    printf("No output");
-                    op_received = 0;
-                    break;
-
-                event_sd_out:
-                {
-                    unsigned pwm_l = chanend_in_word(port_l);
-                    unsigned pwm_r = chanend_in_word(port_r);
-                    printf("port: 0x%x 0x%x\n", pwm_l, pwm_r);
-                    break;
-                }
-            }
+        for(int n_outs = 0; n_outs < n_sd_loops; n_outs++){
+            unsigned pwm_l = chanend_in_word(port_l);
+            unsigned pwm_r = chanend_in_word(port_r);
+            printf("port: 0x%x 0x%x\n", pwm_l, pwm_r);
         }
     }
 
