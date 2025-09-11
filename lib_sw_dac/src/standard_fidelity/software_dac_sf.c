@@ -59,7 +59,7 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
     for(int i = 0; i < CHANNELS; i++) {
         sd->filter0[i] = &sd->filter_input[i][1];
         sd->filter1[i] = &sd->filter_stage1_out[i][2];
-        sd->filter2[i] = &sd->filter_stage2_out[i][4];
+        sd->filter2[i] = &sd->filter_stage2_out[i][0];
         sd->filter3[i] = &sd->filter_stage3_out[i][0];
         sd->filter4[i] = &sd->filter_stage4_out[i][0];
         sd->sigma_delta_state[i] = &sd->sigma_delta_state_array[i][0];
@@ -254,9 +254,17 @@ static int dc_removal(sw_dac_sf_t *sd, int ch, int sample, int alpha) {
 // times 125 divide by 4: 48 -> 1500
 int filter_x125_4(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][39] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_48);
+    // Input samples filter0[0..39], Two FIRs (even odd) on [0..39] produce one sample each
+    // Output samples go into filter1[14..15], so that there 16 samples in filter1
     filter_x2_i1_o2_n80(&sd->filter1[ch][14], sd->filter0[ch], &filter_hashed_81_2[0][0][0]);
+    // Input samples filter1[0..15], Four FIRs on [0..15] produce one sample each
+    // Output samples go into filter2[12..15], so that there are 16 samples in filter2
     filter_x2_i2_o4_n32(&sd->filter2[ch][12], sd->filter1[ch], &filter_hashed_25_4[0][0][0]);      // 25_4 is incorrectly defined and duplicated
+    // Input samples filter2[0..15], Two FIRs (even odd) on [0..7], [1..8], [2..9], [3..10] produce four samples each
+    // Output samples go into filter3[8..15], so that there are 16 samples in filter3
     filter_x2_i4_o8_n16(&sd->filter3[ch][8], sd->filter2[ch], &filter_8x_coefficients[0][0]);
+    // Input samples filter3[0..15], Two FIRs (even odd) on [0..7], [1..8], .. , [6..13], [7..14] produce 8 samples each
+    // Output samples go into filter4[8..23], so that there are 24 samples in filter4
     filter_x2_i8_o16_n16(&sd->filter4[ch][8], sd->filter3[ch], &filter_16x_coefficients[0][0]);
     return filter_x125_64_i16_o32_n16_phased(sd, output, &sd->filter4[ch][0]);
 }
@@ -264,13 +272,13 @@ int filter_x125_4(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
 // times 125 divide by 8: 96 -> 1500
 int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][15] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_96);
-    // Input samples filter0[0..15], Two FIRs (even odd) on [0..15] produce two samples
+    // Input samples filter0[0..15], Two FIRs (even odd) on [0..15] produce one sample each
     // Output samples go into filter1[7..8], so that there are 9 samples in filter1
     filter_x2_i1_o2_n32(&sd->filter1[ch][7], sd->filter0[ch], &filter_hashed_25_4__[0][0][0]);
-    // Input samples filter1[0..8], Two FIRs (even odd) on [0..7] produce two samples, two FIRs (even odd) on [1..8] produce two more samples
+    // Input samples filter1[0..8], Two FIRs (even odd) on [0..7], [1..8] produce two samples each
     // Output samples go into filter2[7..10], so that there are 11 samples in filter2
     filter_x2_i2_o4_n16(&sd->filter2[ch][7], sd->filter1[ch], &filter_8x_coefficients[0][0]);
-    // Input samples filter2[0..10], Two FIRs (even odd) on [0..7], [1..8], [2..9], [3..10] produce four samples
+    // Input samples filter2[0..10], Two FIRs (even odd) on [0..7], [1..8], [2..9], [3..10] produce four samples each
     // Output samples go into filter3[12..15], so that there are 16 samples in filter3
     filter_x2_i4_o8_n16(&sd->filter3[ch][12], sd->filter2[ch], &filter_16x_coefficients[0][0]);
     return filter_x125_64_i8_o16_n16_phased(sd, output, &sd->filter3[ch][0]);
@@ -278,11 +286,11 @@ int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
 
 // times 125 divide by 16: 192 -> 1500
 int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
-    sd->filter0[ch][7] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_192);;
-    // Input samples filter0[0..7], Two FIRs (even odd) on [0..7] produce two samples
+    sd->filter0[ch][7] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_192);
+    // Input samples filter0[0..7], Two FIRs (even odd) on [0..7] produce one sample each
     // Output samples go into filter1[7..8], so that there are 9 samples in filter1
     filter_x2_i1_o2_n16(&sd->filter1[ch][7], sd->filter0[ch], &filter_8x_coefficients__[0][0]);
-    // Input samples filter1[0..8], Two FIRs (even odd) on [0..7] produce two samples, two FIRs (even odd) on [1..8] produce two more samples
+    // Input samples filter1[0..8], Two FIRs (even odd) on [0..7], [1..8] produce two samples each
     // Output samples go into filter2[12..15], so that there are 16 samples in filter2
     filter_x2_i2_o4_n16(&sd->filter2[ch][12], sd->filter1[ch], &filter_16x_coefficients[0][0]);
     int n = filter_x125_64_i4_o8_n16_phased(sd, output, &sd->filter2[ch][0]);

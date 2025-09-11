@@ -139,7 +139,7 @@ def test_sigma_delta(request, burn):
     print(f"\nPWM output array shape: {pwm_array.shape}")
 
 
-    # Filter like the one on xms0021 board
+    # Filter like the one on demo board
     sos = butter(N=2, Wn=filter_cutoff, fs=pwm_rate, output='sos')
     # Brickwall filter
     brickwall = firwin(2001, filter_cutoff, fs=pwm_rate, window="hamming", pass_zero="lowpass")

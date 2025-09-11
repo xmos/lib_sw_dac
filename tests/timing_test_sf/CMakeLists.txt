@@ -5,7 +5,7 @@ project(timing_test_sf)
 
 set(XMOS_SANDBOX_DIR 		${CMAKE_CURRENT_LIST_DIR}/../../..)
 
-set(APP_HW_TARGET 			XCORE-AI-EXPLORER)
+set(APP_HW_TARGET 			XK-EVK-XU316)
 
 set(APP_DEPENDENT_MODULES 	"lib_sw_dac"
 							)
