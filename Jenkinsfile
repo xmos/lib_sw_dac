@@ -78,7 +78,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Tests') {
+                stage('Sim tests') {
                     steps {
                         dir("${REPO_NAME}/tests") {
                             withTools(params.TOOLS_VERSION) {
@@ -105,6 +105,56 @@ pipeline {
                 }
             }
         } // stage 'Build and test'
+
+        stage('🏗️ Test HW') {
+            agent {
+                label 'xcore.ai'
+            }
+            stages {
+                stage('Checkout') {
+                    steps {
+
+                        println "Stage running on ${env.NODE_NAME}"
+
+                        script {
+                            def (server, user, repo) = extractFromScmUrl()
+                            env.REPO_NAME = repo
+                        }
+
+                        dir(REPO_NAME){
+                            checkoutScmShallow()
+                        }
+                    }
+                }
+
+                stage('HW tests') {
+                    steps {
+                        dir("${REPO_NAME}/tests") {
+                            withTools(params.TOOLS_VERSION) {
+                                createVenv(reqFile: "requirements.txt")
+                                withVenv {
+                                    xcoreBuild(archiveBins: false)
+                                    sh "pytest -vv test_sigma_delta.py --junitxml=pytest_result.xml"
+                                }
+                            }
+                        }
+                        junit "${REPO_NAME}/tests/**/pytest_*.xml"
+                    }
+                }
+                stage("Archive sandbox") {
+                    steps
+                    {
+                        archiveSandbox(REPO_NAME)
+                    }
+                }
+            } // stages
+            post {
+                cleanup {
+                    xcoreCleanSandbox()
+                }
+            }
+        } // stage Test HW
+
 
         stage('🚀 Release') {
             when {

@@ -1,0 +1,173 @@
+# Copyright 2025 XMOS LIMITED.
+# This Software is subject to the terms of the XMOS Public Licence: Version 1.
+import re
+import pytest
+from pathlib import Path
+from filelock import FileLock
+import subprocess
+import shutil
+import numpy as np
+from scipy.signal import resample_poly
+from scipy.io import wavfile
+from helpers import THDN_and_freq, create_if_needed
+from scipy.signal import butter, sosfilt, sosfiltfilt # Simulate the filter on xms0021
+from scipy.signal import firwin, freqz, lfilter # Brickwall filter
+
+
+max_pcm = 32767
+pwm_rate = 1500000
+filter_cutoff = 50000
+
+def parse_output(stdout):
+    pwm_lookup = {}
+
+    # regex patterns
+    pwm_pattern = re.compile(r"PWM\s+(-?\d+):0x([0-9a-fA-F]+)")
+
+    current_loop = None
+    loop_count = 0
+    max_pwm_magnitude = 0
+
+    for line in stdout:
+        line = line.strip()
+        if not line or "Started" in line or "Completed" in line:
+            continue
+
+        # Parse PWM table
+        m_pwm = pwm_pattern.match(line)
+        if m_pwm:
+            idx = int(m_pwm.group(1))
+            hexval = int(m_pwm.group(2), 16)
+            pwm_lookup[hexval] = idx
+            max_pwm_magnitude = abs(idx) if abs(idx) > max_pwm_magnitude else max_pwm_magnitude 
+
+
+    return pwm_lookup, max_pwm_magnitude
+
+def parse_xscope(filepath, pwm_lookup):
+    text = open(filepath, "r").read()
+
+    # match "b<binary> <var>"
+    matches = re.findall(r"b([01]+)\s+(\d+)", text)
+
+    pairs = []
+    sample_num = 0
+    # xscope IDs
+    left_pwm_idx = 0
+    right_pwm_idx = 1
+    
+    for bits, var in matches:
+        pwm = int(bits, 2) # binary
+        var = int(var, 2)
+        if not pwm in list(pwm_lookup.keys()):
+            print(f"Unrecognised PWM value: {hex(pwm)} {pwm} at sample: {sample_num} in channel: {var}, lookup: {list(pwm_lookup.keys())}")
+            if var == right_pwm_idx:
+                sample_num += 1
+            continue
+
+        if var == left_pwm_idx:
+            left = pwm_lookup[pwm]
+        if var == right_pwm_idx:
+            right = pwm_lookup[pwm]
+            pairs.append((left, right))
+            sample_num += 1
+
+    return np.array(pairs, dtype=np.int32)
+
+
+"""
+This test runs just the sigma delta (and PWM) thread. It feeds in a 1.5MHz sampled sinewave
+of 1kHz and then captures the outputs to the ports over a channel.
+These are then converted to a time series of DC voltage levels and filtered and optionally
+resampled to something a bit more manageable than 1.5MHz.
+The output is then fed into the THDN script to see if it is working.
+NOTE - this isn't really a true performance test, more a regression test to make sure the
+SD modulator and PWM aren't broken. The THDN script is useful but doesn't seem to produce
+the expected THDN values of -90 or so 
+"""
+@pytest.mark.parametrize("burn", [1, 0])
+def test_sigma_delta(request, burn):
+    test_name = "test_sigma_delta"
+
+    cwd = Path(request.fspath).parent
+    binary = Path(f'{cwd}/{test_name}/bin/{test_name}.xe')
+    assert Path(binary).exists(), f"Cannot find {binary}"
+    tmp_binary = Path(f'{cwd}/{test_name}/bin/{test_name}_{burn}.xe') # Needed for xdist
+    create_if_needed("logs")
+    with FileLock("file_copy.lock"):
+        shutil.copy2(binary, tmp_binary)
+
+    simulator = False
+    print(f"Using simulator: {simulator}")
+    # About 2 mins on xsim and about 30s on xrun
+    num_loops = 10000 if simulator else 1000000
+    xscope_file = Path(f"logs/{test_name}_trace_{burn}_{num_loops}.vcd")
+
+    if simulator:
+        run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {tmp_binary} {burn} {num_loops}'
+        print("Running cmd: ", run_cmd)
+        stdout = subprocess.check_output(run_cmd, shell = True)
+        run_output = stdout.decode("utf-8").splitlines()
+    else:
+        # Ensure we don't spin up two HW instances at the same time
+        with FileLock("xrun.lock"):
+            run_cmd = f'xrun --id 0 --xscope-file {xscope_file} --args {tmp_binary} {burn} {num_loops}'
+            print("Running cmd: ", run_cmd)
+            stdout = subprocess.check_output(run_cmd, shell = True)
+            run_output = stdout.decode("utf-8").splitlines()
+
+
+    tmp_binary.unlink() # delete
+
+    print("Parsing terminal output")
+    pwm_lookup, max_pwm_magnitude = parse_output(run_output)
+    print("PWM Table (hex→index):")
+    for k, v in pwm_lookup.items():
+        print(f"  {hex(k)} → {v}")
+
+    print("Parsing XSCOPE output")
+    pwm_vals = parse_xscope(xscope_file, pwm_lookup)
+
+    pwm_array = np.array(pwm_vals, dtype=float)
+    pwm_array /= max_pwm_magnitude # scale to +-1
+    print(f"\nPWM output array shape: {pwm_array.shape}")
+
+
+    # Filter like the one on xms0021 board
+    sos = butter(N=2, Wn=filter_cutoff, fs=pwm_rate, output='sos')
+    # Brickwall filter
+    brickwall = firwin(2001, filter_cutoff, fs=pwm_rate, window="hamming", pass_zero="lowpass")
+
+
+    # Test pass/fail
+    THDN_limits_xrun = {48000:-70, 96000:-65, 192000:-63}
+    THDN_limits_sim = {48000:-40, 96000:-37, 192000:-34} # We have less signal to measure so lower vals
+
+    for sample_rate in THDN_limits_sim.keys():
+        print(f"Resampling to: {sample_rate}")
+        # Resample ratios
+        down = 125
+        up = sample_rate / (pwm_rate / down)
+        for channel in [0, 1]:
+            one_channel = pwm_array[:, channel]
+            # filtered = sosfilt(sos, one_channel) # like xms0021 HW - second order linear-phase-ish
+            filtered = lfilter(brickwall, 1.0, one_channel) # brickwall
+
+            skip = 40 # There is a delay on the filter so skip the first few
+            THDN, freq = THDN_and_freq(filtered[skip:], pwm_rate)
+            print(f"Filtered channel {channel} THDN: {THDN} freq: {freq}")
+            downsampled = resample_poly(filtered, up=up, down=down, axis=0)
+            THDN, freq = THDN_and_freq(downsampled[skip:], sample_rate)
+            print(f"Downsampled channel {channel} THDN: {THDN} freq: {freq}")
+
+            if simulator:
+                target_THDN = THDN_limits_sim[sample_rate]
+            else:
+                target_THDN = THDN_limits_xrun[sample_rate]
+
+            assert THDN < target_THDN, f"Failed THDN at sample rate {sample_rate}, target: {target_THDN} actual: {THDN}"
+
+        wave_name = Path(f"logs/{test_name}_{sample_rate}_{burn}_{num_loops}.wav")
+        wavfile.write(wave_name, sample_rate, np.int16(downsampled * max_pcm))
+        print()
+
