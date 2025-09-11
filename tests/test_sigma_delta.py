@@ -165,7 +165,7 @@ def test_sigma_delta(request, burn):
             else:
                 target_THDN = THDN_limits_xrun[sample_rate]
 
-            assert THDN < target_THDN, "Failed THDN at sample rate {sample_rate}, target: {target_THDN} actual: {THDN}"
+            assert THDN < target_THDN, f"Failed THDN at sample rate {sample_rate}, target: {target_THDN} actual: {THDN}"
 
         wave_name = Path(f"logs/{test_name}_{sample_rate}_{burn}_{num_loops}.wav")
         wavfile.write(wave_name, sample_rate, np.int16(downsampled * max_pcm))

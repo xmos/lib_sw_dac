@@ -70,7 +70,7 @@ void run_sd_pwm(sw_dac_sf_t *sd, chanend_t c_in) {
 }
 
 int main(int argc, char *argv[]) {
-    if(argc <=1 || argc > 3){
+    if(argc != 3){
         printf("Error - need to pass burn and loops as args\n");
         _Exit(-1);
     }
