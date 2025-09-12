@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "sw_dac.h"
 #include "sdac_sf.h"
+#include "../../common/sin1500.h"
 
 
 DECLARE_JOB(test_app, (chanend_t, chanend_t, chanend_t, int, int));
@@ -17,19 +18,27 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
     if(burn){
         local_thread_mode_set_bits(thread_mode_fast); // Always issue
     }
-
-    int i = 0;
-    int32_t data[4][SDAC_BUF_TOTAL] = {{0}};
-
     int n_sd_loops = 5;
+
+    int32_t data[4][SDAC_BUF_TOTAL] = {{0}};
+    int sample_idx = 0;
+
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
-        printf("Loop: %d\n", loop_count);
+        printf("loop: %d\n", loop_count);
 
+        int idx = loop_count % 4;
+        
         // Send to SD modulator/PWM
-        data[i][SDAC_BUF_N] = n_sd_loops;
+        // First setup array to transfer to SD
+        data[idx][SDAC_BUF_N] = n_sd_loops;
+        for(int i = 0; i < n_sd_loops; i++){
+            int32_t sample = sin1500[sample_idx % 1500] >> 2; // More amplitude than this and it clips/ overflows
+            data[idx][SDAC_BUF_L + i] = sample;
+            data[idx][SDAC_BUF_R + i] = -sample;
+            sample_idx++;
+        }
 
-        chanend_out_word(c_sd_in, (int) &data[i][0]);
-        i = (i+1) & 3; // Modulo 4 add
+        chanend_out_word(c_sd_in, (int) &data[idx][0]);
 
         for(int n_outs = 0; n_outs < n_sd_loops; n_outs++){
             unsigned pwm_l = chanend_in_word(port_l);
@@ -39,7 +48,6 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
     }
 
     printf("Completed test app\n");
-
     _Exit(0);
 }
 
@@ -54,6 +62,10 @@ void run_sd_pwm(sw_dac_sf_t *sd, chanend_t c_in) {
 }
 
 int main(int argc, char *argv[]) {
+    if(argc <=1 || argc > 3){
+        printf("Error - need to pass burn and loops as args\n");
+        _Exit(-1);
+    }
     int burn = atoi(argv[1]);
     int n_loops = atoi(argv[2]);
 
