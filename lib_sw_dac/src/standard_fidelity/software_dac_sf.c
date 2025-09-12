@@ -298,6 +298,8 @@ int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
 }
 
 void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
+    // setup the vpu for the filters and predistortion
+    asm("ldc r11, 0\n vsetc r11");
     int sample_rate = 48000;
     int32_t data[4][SDAC_BUF_TOTAL];
     memset(data, 0, sizeof(data));

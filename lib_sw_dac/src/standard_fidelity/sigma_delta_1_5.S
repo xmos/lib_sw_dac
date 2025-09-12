@@ -27,7 +27,8 @@
     .linkset FUNCTION_NAME.nstackwords, 0
     .align 16
 FUNCTION_NAME:
-    { in r11, res[r0]            ; nop }
+    { ldc r11, 0                ; nop }
+    { in r11, res[r0]            ; vsetc r11 }
 .Louter_loop:
     { set dp, r11                ; nop }
     { ldw r9, dp[SDAC_BUF_N]    ; nop }
