@@ -1,20 +1,22 @@
 cmake_minimum_required(VERSION 3.21)
 include($ENV{XMOS_CMAKE_PATH}/xcommon.cmake)
 
-project(app_sf_sine)
+project(test_sigma_delta)
 
 set(XMOS_SANDBOX_DIR 		${CMAKE_CURRENT_LIST_DIR}/../../..)
 
 set(APP_HW_TARGET 			XK-EVK-XU316)
 
 set(APP_DEPENDENT_MODULES 	"lib_sw_dac"
-							"lib_sw_pll(2.4.0)")
+							)
 
-set(APP_PCA_ENABLE 			ON)
+set(APP_PCA_ENABLE 			OFF) # TODO why does PCA cause build error
 
 set(APP_COMPILER_FLAGS    	-O3
 							-g
-							-report)
+							-report
+							-DSW_DAC_SD_TEST_MODE=1
+							-fcmdline-buffer-bytes=1024)
 
 set(APP_INCLUDES    		src)
 

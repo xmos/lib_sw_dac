@@ -2,6 +2,7 @@
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 #include <xcore/assert.h>
 #include <xcore/port.h>
 #include <xcore/clock.h>
@@ -37,11 +38,11 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
                     float p_x2, float p_x3)
 {
     memset(sd, 0, sizeof(*sd));
-
+#if !defined(SW_DAC_SD_TEST_MODE)
     init_ports(dac_ports, clk);
+#endif
     sd->clock_block = clk;
     memcpy(&sd->out_ports[0], dac_ports, 2 * sizeof(port_t));
-
     sd->sd_coeffs = &sd_coeffs[0][0];
     const int negate = SW_DAC_NEGATE ? -1 : 1;
 
@@ -98,6 +99,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (1 << (2*pwm_max)) | (mask << (1 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
+#if defined(SW_DAC_SD_TEST_MODE)
+            printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
+#endif
         }
     } else {
         sd->pwm_lookup = &sd->pwm_lookup_table[pwm_max];
@@ -107,6 +111,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (3 << (2*pwm_max)) | (mask << (2 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
+#if defined(SW_DAC_SD_TEST_MODE)
+            printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
+#endif
         }
     }
 }

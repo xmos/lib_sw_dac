@@ -22,7 +22,8 @@ Software DAC for xcore comprising of upsampling, sigma-delta modulator and PWM g
 Features
 ********
 
-* Supports 48000, 96000 and 192000 Hz sample rate stereo output
+* Supports 48000, 96000 and 192000 Hz sample rate, stereo output
+* Uses two hardware threads, two one-bit ports, one clock-block and 32 kB of RAM
 
 ************
 Known issues
