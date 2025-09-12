@@ -32,79 +32,121 @@ pipeline {
     }
 
     stages {
-        stage('🏗️ Build and test') {
-            agent {
-                label 'x86_64 && linux && documentation'
-            }
-
-            stages {
-                stage('Checkout') {
-                    steps {
-
-                        println "Stage running on ${env.NODE_NAME}"
-
-                        script {
-                            def (server, user, repo) = extractFromScmUrl()
-                            env.REPO_NAME = repo
-                        }
-
-                        dir(REPO_NAME){
-                            checkoutScmShallow()
-                        }
-                    }
-                }
-
-                stage('Examples build') {
-                    steps {
-                        dir("${REPO_NAME}/examples") {
-                            xcoreBuild()
-                        }
-                    }
-                }
-
-                stage('Repo checks') {
-                    steps {
-                        warnError("Repo checks failed")
-                        {
-                            runRepoChecks("${WORKSPACE}/${REPO_NAME}")
-                        }
-                    }
-                }
-
-                stage('Doc build') {
-                    steps {
-                        dir(REPO_NAME) {
-                            buildDocs()
-                        }
-                    }
-                }
-                stage('Tests') {
-                    steps {
-                        dir("${REPO_NAME}/tests") {
-                            withTools(params.TOOLS_VERSION) {
-                                createVenv(reqFile: "requirements.txt")
-                                withVenv {
-                                    xcoreBuild(archiveBins: false)
-                                    sh "pytest -vv -n auto --junitxml=pytest_result.xml"
+        stage('🏗️ Build & Test') {
+            parallel {
+                stage('🏗️ Build and sim tests') {
+                    agent { label 'x86_64 && linux && documentation' }
+                    stages {
+                        stage('Checkout') {
+                            steps {
+                                println "Stage running on ${env.NODE_NAME}"
+                                script {
+                                    def (server, user, repo) = extractFromScmUrl()
+                                    env.REPO_NAME = repo
+                                }
+                                dir(REPO_NAME) {
+                                    checkoutScmShallow()
                                 }
                             }
                         }
-                        junit "${REPO_NAME}/tests/**/pytest_*.xml"
+
+                        stage('Examples build') {
+                            steps {
+                                dir("${REPO_NAME}/examples") {
+                                    xcoreBuild()
+                                }
+                            }
+                        }
+
+                        stage('Repo checks') {
+                            steps {
+                                warnError("Repo checks failed") {
+                                    runRepoChecks("${WORKSPACE}/${REPO_NAME}")
+                                }
+                            }
+                        }
+
+                        stage('Doc build') {
+                            steps {
+                                dir(REPO_NAME) {
+                                    buildDocs()
+                                }
+                            }
+                        }
+
+                        stage('Sim tests') {
+                            steps {
+                                dir("${REPO_NAME}/tests") {
+                                    withTools(params.TOOLS_VERSION) {
+                                        createVenv(reqFile: "requirements.txt")
+                                        withVenv {
+                                            xcoreBuild(archiveBins: false)
+                                            sh "pytest -vv -n auto --junitxml=pytest_result.xml"
+                                        }
+                                    }
+                                }
+                                junit "${REPO_NAME}/tests/**/pytest_*.xml"
+                            }
+                        }
+
+                        stage("Archive sandbox") {
+                            steps {
+                                archiveSandbox(REPO_NAME)
+                            }
+                        }
                     }
-                }
-                stage("Archive sandbox") {
-                    steps
-                    {
-                        archiveSandbox(REPO_NAME)
+                    post {
+                        cleanup {
+                            xcoreCleanSandbox()
+                        }
                     }
-                }
-            } // stages
-            post {
-                cleanup {
-                    xcoreCleanSandbox()
-                }
-            }
-        } // stage 'Build and test'
+                } // stage Build and test
+
+                stage('🏗️ Build and hardware tests') {
+                    agent { label 'xcore.ai' }
+                    stages {
+                        stage('Checkout') {
+                            steps {
+                                println "Stage running on ${env.NODE_NAME}"
+                                script {
+                                    def (server, user, repo) = extractFromScmUrl()
+                                    env.REPO_NAME = repo
+                                }
+                                dir(REPO_NAME) {
+                                    checkoutScmShallow()
+                                }
+                            }
+                        }
+
+                        stage('HW tests') {
+                            steps {
+                                dir("${REPO_NAME}/tests") {
+                                    withTools(params.TOOLS_VERSION) {
+                                        createVenv(reqFile: "requirements.txt")
+                                        withVenv {
+                                            xcoreBuild(archiveBins: false)
+                                            sh "pytest -vv -s test_sigma_delta.py --junitxml=pytest_result.xml"
+                                        }
+                                    }
+                                }
+                                junit "${REPO_NAME}/tests/**/pytest_*.xml"
+                            }
+                        }
+
+                        stage("Archive sandbox") {
+                            steps {
+                                archiveSandbox(REPO_NAME)
+                            }
+                        }
+                    }
+                    post {
+                        cleanup {
+                            xcoreCleanSandbox()
+                        }
+                    }
+                } // stage Test HW
+            } // parallel
+        }
 
         stage('🚀 Release') {
             when {
@@ -114,5 +156,5 @@ pipeline {
                 triggerRelease()
             }
         }
-    } // stages
+    }
 } // pipeline

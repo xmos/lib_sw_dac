@@ -242,6 +242,9 @@ either:
 
 * Directly drive a class-D style amplifier (H-bridge)
 
+It is recommended to use a low-pass filter if driving a head-phone amplifier.
+Depending on the required output bandwidth, a second order, linear-phase low pass filter with a
+cut-off point between 24 kHz and 48 kHz may be suitable.
 
 |newpage|
 
@@ -303,11 +306,11 @@ With all filters symmetrical and a constant group delay.
 If desirable, one could change the final filter to 2x, the clock to 24.576,
 and the PWM pulse rate to 1.536 MHz without many other changes.
 
-Master clock and analogue amplifier on the demonstrator design
---------------------------------------------------------------
+Master clock and analogue amplifier
+-----------------------------------
 
 By default, we create symmetrical PWM pulses, hence we use a master clock
-of 1.5 Mhz x 8 x 2 = 24 MHz. Our example design uses an external 24 MHz
+of 1.5 MHz x 8 x 2 = 24 MHz. Our example design uses an external 24 MHz
 oscillator with an external D-type resynchroniser that use a low-noise LDO
 not used by the digital circuitry. For cost reduction, one can generate 24 MHz
 directly from a shared oscillator with the XCORE, or directly from the
