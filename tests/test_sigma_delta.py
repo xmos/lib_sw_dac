@@ -97,7 +97,7 @@ def test_sigma_delta(request, burn):
     with FileLock("file_copy.lock"):
         shutil.copy2(binary, tmp_binary)
 
-    simulator = True
+    simulator = False
     print(f"Using simulator: {simulator}")
     # About 2 mins on xsim and about 30s on xrun
     num_loops = 10000 if simulator else 1000000
