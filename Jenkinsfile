@@ -134,7 +134,7 @@ pipeline {
                                 createVenv(reqFile: "requirements.txt")
                                 withVenv {
                                     xcoreBuild(archiveBins: false)
-                                    sh "pytest -vv test_sigma_delta.py --junitxml=pytest_result.xml"
+                                    sh "pytest -vv -s test_sigma_delta.py --junitxml=pytest_result.xml"
                                 }
                             }
                         }
