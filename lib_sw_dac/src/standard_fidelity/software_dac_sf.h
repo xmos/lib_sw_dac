@@ -17,61 +17,68 @@
 #define CHANNELS    2
 #define PWM_MAX_LEN 12
 
+#if CHANNELS != 2
+#error "Only stereo build is supported"
+#endif
+
 typedef struct {
     // These are variables used in the assembly code
     // Many of them point to data further on
-    
+
+    // Sigma-delta
     int *sigma_delta_state[CHANNELS];
     int32_t *pwm_lookup;
     xclock_t clock_block;
-    chanend_t input_chan_end; // For use inside run_dac
-    int bank;
     int *sd_coeffs;
-    port_t out_ports[CHANNELS];  // Two ports
+    port_t out_ports[CHANNELS];
+
+    // Upsampling filters
     int32_t *filter0[CHANNELS];
     int32_t *filter1[CHANNELS];
     int32_t *filter2[CHANNELS];
     int32_t *filter3[CHANNELS];
     int32_t *filter4[CHANNELS];
-    int32_t *filter5[CHANNELS];
-    
+    int bank;
+
+    // DC removal
+    int average[CHANNELS];
+
     // Actual data starts here
 
-    int average[CHANNELS];
-    
+    // Buffer to hold data of the pwm_lookup pointer
     int32_t pwm_lookup_table[PWM_MAX_LEN];
-    
-    // Must be multiple of 25 plus 7 overhang for VSTR
-    int circular_buffer[100 * 2 + 7];
-    
-    // This is the input to filter_2x and needs a 40 long buffer
-    // The shuffle writes to element [-1..38] inclusive
-    // So we create a buffer of 41 and use elements [1..39] inclusive
+
+    // Buffer to hold data of the filter0 pointer
+    // Needs to be long enough to accommodate filter_x2_i1_o2_n80
+    // which needs a 40 var long state buffer
+    // and will shuffle the state to [-1..38] inclusive
+    // so needs to contain 41 elements
     int32_t filter_input[CHANNELS][41];
 
-    // This is the input to filter_4x and needs a 16 long input
-    // The shuffle writes to element [-2..13] inclusive
-    // filter_2x writes to elements [14,15] and destroys [16..21] inclusive
-    // So we create a buffer of 24 and use elements [2..17] inclusive
+    // Buffer to hold data of the filter1 pointer
+    // Needs to be long enough to accommodate filter_x2_i2_o4_n32
+    // which needs a 16 var long state buffer
+    // and will shuffle the state to [-2..13] inclusive
+    // previous filter will write to the [14..15] and overwrite [16..21] inclusive
+    // so needs to contain 24 elements
     int32_t filter_stage1_out[CHANNELS][24];
-    
-    // This is the input to filter_8x and needs a 12 long input
-    // The shuffle writes to element [-4..11] inclusive
-    // filter_4x writes to elements [12..15] and destroys [16..19] inclusive
-    // So we create a buffer of 24 and use elements [4..15] inclusive
-    int32_t filter_stage2_out[CHANNELS][24];
 
-    // This is the output of filter_8x
-    // It contains 16 samples. It writes to the last 8. 8 are history
+    // Buffer to hold data of the filter2 pointer
+    // Needs to be long enough to accommodate filter_x2_i4_o8_n16
+    // which needs a 16 var long state buffer
+    // previous filter will write to the [12..15] and overwrite [16..19] inclusive
+    // so needs to contain 20 elements
+    int32_t filter_stage2_out[CHANNELS][20];
+    
+    // Buffer to hold data of the filter3 pointer
+    // Needs to be long enough to accommodate filter_x2_i8_o16_n16
+    // which needs a 16 var long state buffer
     int32_t filter_stage3_out[CHANNELS][16];
 
-    // This is the output of filter_16x
-    // It contains 24 samples. It writes to the last 16. 8 are history
+    // Buffer to hold data of the filter4 pointer
+    // Needs to be long enough to accommodate filter_x125_64_i16_o32_n16_phased
+    // which needs a 24 var long state buffer
     int32_t filter_stage4_out[CHANNELS][24];
-
-    // This is the output of filter_125_3x
-    // It contains 41 or 42 samples.
-    int32_t filter_stage5_out[CHANNELS][42];
     
     int32_t pre_distort_in_[CHANNELS][33];
     int32_t pre_distort_pwm_comp_history_[CHANNELS][34];

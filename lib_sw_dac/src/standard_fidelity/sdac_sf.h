@@ -1,5 +1,10 @@
 // Copyright 2025 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
+
+// These are offsets to the sw_dac_sf_t struct
+// used from the singa-delta assembly API
+// Do not modify!
+
 #define SDAC_SD_STATE_L  0
 #define SDAC_SD_STATE_R  1
 
@@ -7,15 +12,14 @@
 
 #define SDAC_CLOCK_BLOCK 3
 
-#define SDAC_INPUT_CHANE 4
+#define SDAC_SD_COEFFS   4
 
-#define SDAC_BANK        5
+#define SDAC_OUT_PORTS_L 5   // Two ports
+#define SDAC_OUT_PORTS_R 6
 
-#define SDAC_SD_COEFFS   6
-#define SDAC_OUT_PORTS_L 7   // Two ports
-#define SDAC_OUT_PORTS_R 8
-
-
+// These are offsets to the array exchanged between
+// the filter thread the sigma-delta thread
+// Do not modify!
 
 #define SDAC_FILTER_MAX  42
 #define SDAC_BUF_N       0

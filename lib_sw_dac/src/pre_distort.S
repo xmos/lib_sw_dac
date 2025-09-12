@@ -2,7 +2,6 @@
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
     .issue_mode dual
 
-#include "sw_dac_conf_default.h"
 #define NSTACKWORDS   24
 #define FUNCTION_NAME pre_distort
 
