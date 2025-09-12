@@ -16,7 +16,7 @@ from scipy.signal import firwin, freqz, lfilter # Brickwall filter
 
 max_pcm = 32767
 pwm_rate = 1500000
-filter_cutoff = 50000
+filter_cutoff = 48000
 
 def parse_output(stdout):
     pwm_lookup = {}
@@ -83,7 +83,8 @@ resampled to something a bit more manageable than 1.5MHz.
 The output is then fed into the THDN script to see if it is working.
 NOTE - this isn't really a true performance test, more a regression test to make sure the
 SD modulator and PWM aren't broken. The THDN script is useful but doesn't seem to produce
-the expected THDN values of -90 or so 
+the expected THDN values of -90 or so unless we run for a long time on HW and downsample to 48k.
+The test automatically detects if there is an available target or not and uses xsim or xrun.
 """
 @pytest.mark.parametrize("burn", [1, 0])
 def test_sigma_delta(request, burn):
@@ -97,13 +98,18 @@ def test_sigma_delta(request, burn):
     with FileLock("file_copy.lock"):
         shutil.copy2(binary, tmp_binary)
 
-    simulator = False
-    print(f"Using simulator: {simulator}")
+    # Check to see if we have HW
+    run_cmd = f'xrun -l'
+    stdout = subprocess.check_output(run_cmd, shell = True)
+    run_output = stdout.decode("utf-8")
+    using_simuator = True if "No Available Devices Found" in run_output else False
+
+    print(f"Using simulator: {using_simuator}")
     # About 2 mins on xsim and about 30s on xrun
-    num_loops = 10000 if simulator else 1000000
+    num_loops = 10000 if using_simuator else 2000000
     xscope_file = Path(f"logs/{test_name}_trace_{burn}_{num_loops}.vcd")
 
-    if simulator:
+    if using_simuator:
         run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {tmp_binary} {burn} {num_loops}'
         print("Running cmd: ", run_cmd)
         stdout = subprocess.check_output(run_cmd, shell = True)
@@ -119,13 +125,13 @@ def test_sigma_delta(request, burn):
 
     tmp_binary.unlink() # delete
 
-    print("Parsing terminal output")
+    print("Parsing terminal output...")
     pwm_lookup, max_pwm_magnitude = parse_output(run_output)
     print("PWM Table (hex→index):")
     for k, v in pwm_lookup.items():
         print(f"  {hex(k)} → {v}")
 
-    print("Parsing XSCOPE output")
+    print("Parsing XSCOPE output...")
     pwm_vals = parse_xscope(xscope_file, pwm_lookup)
 
     pwm_array = np.array(pwm_vals, dtype=float)
@@ -160,7 +166,7 @@ def test_sigma_delta(request, burn):
             THDN, freq = THDN_and_freq(downsampled[skip:], sample_rate)
             print(f"Downsampled channel {channel} THDN: {THDN} freq: {freq}")
 
-            if simulator:
+            if using_simuator:
                 target_THDN = THDN_limits_sim[sample_rate]
             else:
                 target_THDN = THDN_limits_xrun[sample_rate]
