@@ -5,6 +5,7 @@
 #include <xcore/clock.h>
 #include <xcore/port.h>
 #include <xcore/chanend.h>
+#include <xcore/hwtimer.h>
 #include <xcore/parallel.h>
 
 #ifndef __software_dac_sf_h__
@@ -31,6 +32,10 @@ typedef struct {
     xclock_t clock_block;
     int *sd_coeffs;
     port_t out_ports[CHANNELS];
+    int timeout_period;
+    int timeout_word;
+    hwtimer_t timeout_resid;
+    int timeout_occurred;
 
     // Upsampling filters
     int32_t *filter0[CHANNELS];
