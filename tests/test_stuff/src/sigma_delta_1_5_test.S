@@ -29,8 +29,7 @@
 FUNCTION_NAME:
 // setup select
     ldap r11, .sd_timeout; //r11 <- &sd_timeout handler
-    ldw r6, sp[8]; // Get sd struct base addr
-    ldw r6, r6[SDAC_TIMEOUT_RESID];
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
     setv res[r6], r11;  //set event vector
     eeu res[r6]; // enable
 
@@ -38,7 +37,7 @@ FUNCTION_NAME:
     setv res[r0], r11;
     eeu res[r0]; // enable
 
-    setsr 0x01; // event enable
+    setsr 0x01; // event enable in thread
 
 // Main loop
     // { in r11, res[r0]            ; nop }
@@ -49,7 +48,17 @@ FUNCTION_NAME:
 
     { set dp, r11                ; nop }
     { ldw r9, dp[SDAC_BUF_N]    ; nop }
-    nop
+
+    // Move the timeout timer on
+    ldw r11, sp[SDAC_STACK_TIMEOUT_PERIOD];
+    mul r11, r11, r9;
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    getd r6, res[r6];
+    add r11, r11, r6;
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    setd res[r6], r11; // Move time trigger forwards
+
+    // nop
 .Linner_loop:
     { ldw r1, dp[SDAC_BUF_L]     ; sub r9, r9, 1 }
 
@@ -102,41 +111,29 @@ FUNCTION_NAME:
     
     { bt  r9, .Linner_loop       ; ldaw dp, dp[SDAC_BUF_STEP] }
     // { bu  .Louter_loop           ; in r11, res[r0] }
+    bu  .Louter_loop;
 
+    // Select handler
+    .align 8
+.sd_timeout:
+    // Get the out dummy word, output it and then invert it to avoid DC output content
+    ldw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+    outpw res[r7], r11, 16;
+    outpw res[r8], r11, 16;
+    not r11, r11;
+    stw r11, sp[SDAC_STACK_TIMEOUT_WORD];
 
     // Move the timeout timer on
     ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
     getd r11, res[r6];
     ldw r6, sp[SDAC_STACK_TIMEOUT_PERIOD];
     add r11, r11, r6;
-    stw r11, sp[SDAC_STACK_TIMEOUT_TRIG]; // write back to struct
     ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
     setd res[r6], r11; // Move time trigger forwards
-    bu  .Louter_loop;
-
-    // Select handler
-    .align 16
-.sd_timeout:
-    // Get the out dummy word, output it and then invert it to avoid DC output content
-    ldw r6, sp[8]; // Get sd struct base addr
-    ldw r11, r6[SDAC_TIMEOUT_WORD];
-    outpw res[r7], r11, 16;
-    outpw res[r8], r11, 16;
-    not r11, r11;
-    stw r11, r6[SDAC_TIMEOUT_WORD];
-    // Move the timeout timer on
-    ldw r6, sp[8]; // Get sd struct base addr
-    ldw r11, r6[SDAC_TIMEOUT_PERIOD];
-    ldw r6, r6[SDAC_TIMEOUT_TRIG]
-    add r11, r11, r6;
-    ldw r6, sp[8]; // Get sd struct base addr
-    stw r11, r6[SDAC_TIMEOUT_TRIG]; // write back to struct
-    ldw r6, sp[8]; // Get sd struct base addr
-    ldw r6, r6[SDAC_TIMEOUT_RESID];
-    setd res[r6], r11; // Move time trigger forwards
-    // Set timeout occurred flag
-    ldw r6, sp[8]; // Get sd struct base addr
+    
+    // Set timeout occurred flag in struct
     ldc r11, 0x1;
+    ldw r6, sp[SDAC_STACK_SD_STRUCT_BASE];
     stw r11, r6[SDAC_TIMEOUT_OCCURED];
 
     bu .Louter_loop;

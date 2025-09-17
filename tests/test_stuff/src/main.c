@@ -18,7 +18,7 @@
 #include "../../common/sin1500.h"
 #include <xscope.h>
 
-const int n_sd_loops = 5;
+const int n_sd_loops = 2;
 
 
 DECLARE_JOB(test_app, (sw_dac_sf_t *, chanend_t, int, int));
@@ -34,6 +34,8 @@ void test_app(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops) {
     int32_t data[num_buffs_in_sd][SDAC_BUF_TOTAL] = {{0}};
     int sample_idx = 0;
 
+    hwtimer_t tmr = hwtimer_alloc();
+
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
         // printf("loop: %d\n", loop_count);
         // xscope_int(0, loop_count);
@@ -48,6 +50,9 @@ void test_app(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops) {
             data[idx][SDAC_BUF_L + i] = sample;
             data[idx][SDAC_BUF_R + i] = -sample;
             sample_idx++;
+            if(sample_idx == 50){
+                hwtimer_delay(tmr, 3000);
+            }
         }
 
         chanend_out_word(c_sd_in, (int) &data[idx][0]);
@@ -161,11 +166,11 @@ extern void sigma_delta_1_5_test(sw_dac_sf_t *sd, chanend_t ce); // does not ret
 DECLARE_JOB(run_sd_pwm, (sw_dac_sf_t *, chanend_t));
 void run_sd_pwm(sw_dac_sf_t *sd, chanend_t c_in) {
     hwtimer_t tmr = hwtimer_alloc();
-    sd->timeout_period = 80 * n_sd_loops; // at 1.5MHz this should be 66.666 so set above
+    sd->timeout_period = 70; // at 1.5MHz this should be 66.666 so set above
     sd->timeout_word = 0x0ff0;
     sd->timeout_resid = tmr;
     sd->timeout_occurred = 0;
-    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(tmr) + sd->timeout_period);
+    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(tmr) + sd->timeout_period + 500); // Allow some extra cycles for entry
 
     sigma_delta_1_5_test(sd, c_in);
 }

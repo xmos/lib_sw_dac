@@ -16,16 +16,14 @@
 
 #define SDAC_OUT_PORTS_L 5   // Two ports
 #define SDAC_OUT_PORTS_R 6
-#define SDAC_TIMEOUT_TRIG     7   // Used for safe timeout in SD/PWM
-#define SDAC_TIMEOUT_PERIOD   8   // Used for safe timeout in SD/PWM
-#define SDAC_TIMEOUT_WORD   9   // Used for safe timeout in SD/PWM
-#define SDAC_TIMEOUT_RESID   10   // Used for safe timeout in SD/PWM
-#define SDAC_TIMEOUT_OCCURED   11   // Used for safe timeout in SD/PWM
+#define SDAC_TIMEOUT_PERIOD   7   // Used for safe timeout in SD/PWM
+#define SDAC_TIMEOUT_WORD     8   // Used for safe timeout in SD/PWM
+#define SDAC_TIMEOUT_RESID    9   // Used for safe timeout in SD/PWM
+#define SDAC_TIMEOUT_OCCURED  10  // Used for safe timeout in SD/PWM
 
 // These are offsets to the array exchanged between
 // the filter thread the sigma-delta thread
 // Do not modify!
-
 #define SDAC_FILTER_MAX  42
 #define SDAC_BUF_N       0
 #define SDAC_BUF_L       1
@@ -37,5 +35,5 @@
 // DO NOT MODIFY!
 #define SDAC_STACK_SD_STRUCT_BASE   8
 #define SDAC_STACK_TIMEOUT_PERIOD   9
-#define SDAC_STACK_TIMEOUT_TRIG     10
+#define SDAC_STACK_TIMEOUT_WORD     10
 #define SDAC_STACK_TIMEOUT_RESID    11

@@ -34,10 +34,10 @@ FUNCTION_NAME:
     stw r0, sp[SDAC_STACK_SD_STRUCT_BASE] // Store sd struct addr
     ldw r4, r0[SDAC_TIMEOUT_PERIOD];
     stw r4, sp[SDAC_STACK_TIMEOUT_PERIOD]
-    ldw r4, r0[SDAC_TIMEOUT_TRIG];
-    stw r4, sp[SDAC_STACK_TIMEOUT_TRIG]
     ldw r4, r0[SDAC_TIMEOUT_RESID];
     stw r4, sp[SDAC_STACK_TIMEOUT_RESID]
+    ldw r4, r0[SDAC_TIMEOUT_WORD];
+    stw r4, sp[SDAC_STACK_TIMEOUT_WORD]
 
     // Initialise registers for sigma_delta_1_5_test
     ldw  r10, r0[SDAC_PWM_LOOKUP]
