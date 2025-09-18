@@ -171,9 +171,6 @@ void sw_dac_sf(sw_dac_sf_t *sd, chanend_t ce);
 #else
 DECLARE_JOB(sw_dac_sf, (sw_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
 #endif
-/**
- * Assembly kernel that runs the sigma-delta.
- */
-void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
+
 
 #endif

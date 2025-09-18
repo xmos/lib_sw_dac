@@ -31,8 +31,16 @@ FUNCTION_NAME:
     stw r10, sp[6]
     stw dp, sp[7]
 
+    // Now store select info for the timeout and copy to stack for easier access
+    stw r0, sp[SDAC_STACK_SD_STRUCT_BASE] // Store sd struct addr
+    ldw r4, r0[SDAC_TIMEOUT_PERIOD]
+    stw r4, sp[SDAC_STACK_TIMEOUT_PERIOD]
+    ldw r4, r0[SDAC_TIMEOUT_RESID]
+    stw r4, sp[SDAC_STACK_TIMEOUT_RESID]
+    ldw r4, r0[SDAC_TIMEOUT_WORD]
+    stw r4, sp[SDAC_STACK_TIMEOUT_WORD]
+
     // Initialise registers for sigma_delta_1_5
-    
     ldw  r10, r0[SDAC_PWM_LOOKUP]
     ldw  r4, r0[SDAC_SD_COEFFS]
     ldw  r5, r0[SDAC_SD_STATE_L]
@@ -52,7 +60,7 @@ FUNCTION_NAME:
     // Finally initialise channel register for sigma_delta
     add  r0, r1, 0
     
-    bl  sigma_delta_1_5_bespoke_abi 
+    bl  sigma_delta_1_5_bespoke_abi
     
 .exit2:
     ldd r4, r5, sp[0]

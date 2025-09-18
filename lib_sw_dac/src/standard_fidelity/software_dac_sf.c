@@ -14,6 +14,8 @@
 #include "sw_dac_conf_default.h"
 #include "pre_distort.h"
 
+// Assembly kernel that runs the sigma-delta.
+void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
 
 static void init_ports(port_t dac_ports[2], xclock_t clk) {
     for(int i = 0; i < 2; i++) {
@@ -118,8 +120,8 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
     }
 }
 
-DECLARE_JOB(filter_task,      (sw_dac_sf_t *, chanend_t, chanend_t));
-DECLARE_JOB(sigma_delta_task, (sw_dac_sf_t *, chanend_t));
+DECLARE_JOB(filter_task,            (sw_dac_sf_t *, chanend_t, chanend_t));
+DECLARE_JOB(sigma_delta_task_sf,    (sw_dac_sf_t *, chanend_t));
 
 static inline int filter_x125_64_i16_o32_n16_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
     switch(sd->bank) {
@@ -364,7 +366,14 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     chanend_out_control_token(c_out, 1);
 }
 
-void sigma_delta_task(sw_dac_sf_t *sd, chanend_t c_in) {
+void sigma_delta_task_sf(sw_dac_sf_t *sd, chanend_t c_in) {
+    hwtimer_t tmr = hwtimer_alloc();
+    sd->timeout_period = 70;    // at 1.5MHz this will be 66.666 so set slightly above
+    sd->timeout_word = 0x0ff0;  // 50% duty cycle
+    sd->timeout_resid = tmr;
+    sd->timeout_occurred = 0;
+    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(tmr) + sd->timeout_period + 500); // Allow some extra cycles for entry
+    
     sigma_delta_1_5(sd, c_in);
 }
 
@@ -372,7 +381,7 @@ void sw_dac_sf(sw_dac_sf_t *sd, chanend_t c_in) {
     channel_t c = chan_alloc();
 
     PAR_JOBS(
-        PJOB(filter_task,       (sd, c_in, c.end_a)),
-        PJOB(sigma_delta_task,  (sd, c.end_b))
+        PJOB(filter_task,           (sd, c_in, c.end_a)),
+        PJOB(sigma_delta_task_sf,   (sd, c.end_b))
         );
 }

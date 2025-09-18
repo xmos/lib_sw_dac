@@ -5,30 +5,37 @@
 #include <xcore/parallel.h>
 #include <xcore/thread.h>
 #include <xcore/select.h>
+#include <xcore/hwtimer.h>
 #include <xs1.h>
 #include <stdio.h>
+#include <print.h>
 #include <stdlib.h>
 #include "sw_dac.h"
 #include "sdac_sf.h"
+#include "sigma_delta_modulators.h"
+
 #include "../../common/sin1500.h"
 #include <xscope.h>
 
 DECLARE_JOB(sigma_delta_task_sf,    (sw_dac_sf_t *, chanend_t));
 
 
-DECLARE_JOB(test_app, (chanend_t, chanend_t, chanend_t, int, int));
-void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, int n_loops) {
+const int n_sd_loops = 2;
+
+DECLARE_JOB(test_app, (sw_dac_sf_t *, chanend_t, int, int));
+void test_app(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops) {
     xscope_mode_lossless();
     
     if(burn){
-        local_thread_mode_set_bits(thread_mode_fast); // Always issue
+        local_thread_mode_set_bits(thread_mode_fast); // Always issue if enabled
     }
-    int n_sd_loops = 5;
 
     const int num_buffs_in_sd = 4;
 
     int32_t data[num_buffs_in_sd][SDAC_BUF_TOTAL] = {{0}};
     int sample_idx = 0;
+
+    hwtimer_t tmr = hwtimer_alloc();
 
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
         // printf("loop: %d\n", loop_count);
@@ -44,20 +51,16 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
             data[idx][SDAC_BUF_L + i] = sample;
             data[idx][SDAC_BUF_R + i] = -sample;
             sample_idx++;
+            if(sample_idx == 50){
+                hwtimer_delay(tmr, 3000);
+            }
         }
 
         chanend_out_word(c_sd_in, (int) &data[idx][0]);
 
-        for(int n_outs = 0; n_outs < n_sd_loops; n_outs++){
-            unsigned pwm_l = chanend_in_word(port_l);
-            unsigned pwm_r = chanend_in_word(port_r);
-            // printf("port: 0x%x 0x%x\n", pwm_l, pwm_r);
-            xscope_int(0, pwm_l);
-            xscope_int(1, pwm_r);
-        }
     }
 
-    printf("Completed test app\n");
+    printf("Completed test app, timed out: %d\n", sd->timeout_occurred);
     _Exit(0);
 }
 
@@ -65,6 +68,8 @@ DECLARE_JOB(burn, (void));
 void burn(void){
     while(1);
 }
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -75,14 +80,15 @@ int main(int argc, char *argv[]) {
     int burn = atoi(argv[1]);
     int n_loops = atoi(argv[2]);
 
-    printf("Started test app, loops: %d, burn: %d\n", burn, n_loops);
+    printf("Started test app, loops: %d, burn: %d\n", n_loops, burn);
 
 
     channel_t c_sd_ip = chan_alloc();
-    channel_t c_sd_op_0 = chan_alloc();
-    channel_t c_sd_op_1 = chan_alloc();
+    port_t p_left = XS1_PORT_1A;
+    port_t p_right = XS1_PORT_1B;
+
     xclock_t clk = XS1_CLKBLK_1;
-    port_t ports[2] = {c_sd_op_0.end_a, c_sd_op_1.end_a};   // L and R outputs
+    port_t ports[2] = {p_left, p_right};   // L and R outputs
 
     // Setup clock block to run from MCLK in which is set to 24MHz by the App PLL
     clock_enable(clk);
@@ -102,12 +108,12 @@ int main(int argc, char *argv[]) {
         PJOB(burn,                  ()),
         PJOB(burn,                  ()),
         PJOB(burn,                  ()),
-        PJOB(test_app,              (c_sd_ip.end_a, c_sd_op_0.end_b, c_sd_op_1.end_b, burn, n_loops)),
+        PJOB(test_app,              (&sd, c_sd_ip.end_a, burn, n_loops)),
         PJOB(sigma_delta_task_sf,   (&sd, c_sd_ip.end_b))
         );
     } else {
     PAR_JOBS(
-        PJOB(test_app,              (c_sd_ip.end_a, c_sd_op_0.end_b, c_sd_op_1.end_b, burn, n_loops)),
+        PJOB(test_app,              (&sd, c_sd_ip.end_a, burn, n_loops)),
         PJOB(sigma_delta_task_sf,   (&sd, c_sd_ip.end_b))
         );
 

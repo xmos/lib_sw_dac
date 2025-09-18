@@ -75,6 +75,29 @@ def parse_xscope(filepath, pwm_lookup):
     return np.array(pairs, dtype=np.int32)
 
 
+def check_hw_presence():
+    run_cmd = f'xrun -l'
+    stdout = subprocess.check_output(run_cmd, shell = True)
+    run_output = stdout.decode("utf-8")
+
+    return True if "No Available Devices Found" in run_output else False
+
+def run_on_sim(binary, xscope_file, burn, num_loops):
+    run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {binary} {burn} {num_loops}'
+    print("Running cmd: ", run_cmd)
+    stdout = subprocess.check_output(run_cmd, shell = True)
+
+    return stdout.decode("utf-8").splitlines()
+
+def run_on_hw(binary, xscope_file, burn, num_loops):
+    # Ensure we don't spin up two HW instances at the same time
+    with FileLock("xrun.lock"):
+        run_cmd = f'xrun --id 0 --xscope-file {xscope_file} --args {binary} {burn} {num_loops}'
+        print("Running cmd: ", run_cmd)
+        stdout = subprocess.check_output(run_cmd, shell = True)
+
+        return stdout.decode("utf-8").splitlines()
+
 """
 This test runs just the sigma delta (and PWM) thread. It feeds in a 1.5MHz sampled sinewave
 of 1kHz and then captures the outputs to the ports over a channel.
@@ -87,6 +110,7 @@ the expected THDN values of -90 or so unless we run for a long time on HW and do
 The test automatically detects if there is an available target or not and uses xsim or xrun.
 """
 @pytest.mark.parametrize("burn", [1, 0])
+@pytest.mark.timeout(60 * 4)
 def test_sigma_delta(request, burn):
     test_name = "test_sigma_delta"
 
@@ -99,29 +123,17 @@ def test_sigma_delta(request, burn):
         shutil.copy2(binary, tmp_binary)
 
     # Check to see if we have HW
-    run_cmd = f'xrun -l'
-    stdout = subprocess.check_output(run_cmd, shell = True)
-    run_output = stdout.decode("utf-8")
-    using_simuator = True if "No Available Devices Found" in run_output else False
-
+    using_simuator = check_hw_presence()
     print(f"Using simulator: {using_simuator}")
+
     # About 2 mins on xsim and about 30s on xrun
     num_loops = 10000 if using_simuator else 2000000
     xscope_file = Path(f"logs/{test_name}_trace_{burn}_{num_loops}.vcd")
 
     if using_simuator:
-        run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {tmp_binary} {burn} {num_loops}'
-        print("Running cmd: ", run_cmd)
-        stdout = subprocess.check_output(run_cmd, shell = True)
-        run_output = stdout.decode("utf-8").splitlines()
+        run_output = run_on_sim(tmp_binary, xscope_file, burn, num_loops)
     else:
-        # Ensure we don't spin up two HW instances at the same time
-        with FileLock("xrun.lock"):
-            run_cmd = f'xrun --id 0 --xscope-file {xscope_file} --args {tmp_binary} {burn} {num_loops}'
-            print("Running cmd: ", run_cmd)
-            stdout = subprocess.check_output(run_cmd, shell = True)
-            run_output = stdout.decode("utf-8").splitlines()
-
+        run_output = run_on_hw(tmp_binary, xscope_file, burn, num_loops)
 
     tmp_binary.unlink() # delete
 

@@ -11,7 +11,6 @@
 
     .issue_mode dual
     // Used in loop          r0, dp, r9
-    // Not in use            r2
     // Scratch registers:    r11 r6
     // Channel independent
     //   PWM table    r10
@@ -27,12 +26,37 @@
     .linkset FUNCTION_NAME.nstackwords, 0
     .align 16
 FUNCTION_NAME:
-    { ldc r11, 0                ; nop }
-    { in r11, res[r0]            ; vsetc r11 }
+// setup select
+    ldap r11, .sd_timeout; //r11 <- &sd_timeout handler
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    setv res[r6], r11;  //set event vector
+    eeu res[r6]; // enable
+
+    ldap r11, .input_handler; //r11 <- input_handler
+    setv res[r0], r11;
+    eeu res[r0]; // enable
+
+    setsr 0x01; // event enable in thread
+
+// Main loop
 .Louter_loop:
+    waiteu; // This does the IN or timeout
+.input_handler:
+    { in r11, res[r0]            ; nop }
+
     { set dp, r11                ; nop }
-    { ldw r9, dp[SDAC_BUF_N]    ; nop }
-    nop
+    { ldw r9, dp[SDAC_BUF_N]    ; nop } // Get number of samples
+
+    // Move the timeout timer on
+    ldw r11, sp[SDAC_STACK_TIMEOUT_PERIOD];
+    mul r11, r11, r9
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    getd r6, res[r6];
+    add r11, r11, r6;
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    setd res[r6], r11; // Move time trigger forwards
+
+    // nop
 .Linner_loop:
     { ldw r1, dp[SDAC_BUF_L]     ; sub r9, r9, 1 }
 
@@ -84,7 +108,40 @@ FUNCTION_NAME:
 #endif
     
     { bt  r9, .Linner_loop       ; ldaw dp, dp[SDAC_BUF_STEP] }
-    { bu  .Louter_loop           ; in r11, res[r0] }
+    // { bu  .Louter_loop           ; in r11, res[r0] }
+    bu  .Louter_loop;
+
+    // Select handler for timeout. This does not need to speed optimised
+    .align 8
+.sd_timeout:
+    // Get the out dummy word, output it and then invert it to avoid DC output content
+    ldw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+#if defined(SW_DAC_SD_TEST_MODE)
+    out res[r7], r11
+    out res[r8], r11
+#else
+    outpw res[r7], r11, 16;
+    outpw res[r8], r11, 16;
+#endif
+    not r11, r11;
+    stw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+
+    // Move the timeout timer on
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    getd r11, res[r6];
+    ldw r6, sp[SDAC_STACK_TIMEOUT_PERIOD];
+    add r11, r11, r6;
+    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
+    setd res[r6], r11; // Move time trigger forwards
+    
+    // Set timeout occurred flag in struct
+    ldc r11, 0x1;
+    ldw r6, sp[SDAC_STACK_SD_STRUCT_BASE];
+    stw r11, r6[SDAC_TIMEOUT_OCCURED];
+
+    bu .Louter_loop;
+
+
     .align 4
 
 #define F(x) ((x)<<(FRACTIONAL_BITS - 1))
