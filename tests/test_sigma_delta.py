@@ -17,6 +17,7 @@ from scipy.signal import firwin, freqz, lfilter # Brickwall filter
 max_pcm = 32767
 pwm_rate = 1500000
 filter_cutoff = 48000
+pwm_idle_words = [0x0ff0, 0xfffffffffffff00f]
 
 def parse_output(stdout):
     pwm_lookup = {}
@@ -27,11 +28,14 @@ def parse_output(stdout):
     current_loop = None
     loop_count = 0
     max_pwm_magnitude = 0
+    timedout = 0
 
     for line in stdout:
         line = line.strip()
         if not line or "Started" in line or "Completed" in line:
             continue
+        if "Timeout" in line:
+            timedout = int(line.split(":")[1])
 
         # Parse PWM table
         m_pwm = pwm_pattern.match(line)
@@ -41,8 +45,11 @@ def parse_output(stdout):
             pwm_lookup[hexval] = idx
             max_pwm_magnitude = abs(idx) if abs(idx) > max_pwm_magnitude else max_pwm_magnitude 
 
+    # Add idle words
+    for pwd_idle_word in pwm_idle_words:
+        pwm_lookup[pwd_idle_word] = 0
 
-    return pwm_lookup, max_pwm_magnitude
+    return pwm_lookup, max_pwm_magnitude, timedout
 
 def parse_xscope(filepath, pwm_lookup):
     text = open(filepath, "r").read()
@@ -67,6 +74,8 @@ def parse_xscope(filepath, pwm_lookup):
 
         if var == left_pwm_idx:
             left = pwm_lookup[pwm]
+            # if pwm in pwm_idle_words:
+            #     print(f"Idle at {sample_num}")
         if var == right_pwm_idx:
             right = pwm_lookup[pwm]
             pairs.append((left, right))
@@ -82,17 +91,17 @@ def check_hw_presence():
 
     return True if "No Available Devices Found" in run_output else False
 
-def run_on_sim(binary, xscope_file, burn, num_loops):
-    run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {binary} {burn} {num_loops}'
+def run_on_sim(binary, xscope_file, burn, num_loops, pause_at):
+    run_cmd = f'xsim --xscope "-offline {xscope_file}" --args {binary} {burn} {num_loops} {pause_at}'
     print("Running cmd: ", run_cmd)
     stdout = subprocess.check_output(run_cmd, shell = True)
 
     return stdout.decode("utf-8").splitlines()
 
-def run_on_hw(binary, xscope_file, burn, num_loops):
+def run_on_hw(binary, xscope_file, burn, num_loops, pause_at):
     # Ensure we don't spin up two HW instances at the same time
     with FileLock("xrun.lock"):
-        run_cmd = f'xrun --id 0 --xscope-file {xscope_file} --args {binary} {burn} {num_loops}'
+        run_cmd = f'xrun --id 0 --xscope-file {xscope_file} --args {binary} {burn} {num_loops} {pause_at}'
         print("Running cmd: ", run_cmd)
         stdout = subprocess.check_output(run_cmd, shell = True)
 
@@ -109,8 +118,8 @@ SD modulator and PWM aren't broken. The THDN script is useful but doesn't seem t
 the expected THDN values of -90 or so unless we run for a long time on HW and downsample to 48k.
 The test automatically detects if there is an available target or not and uses xsim or xrun.
 """
-@pytest.mark.parametrize("burn", [1, 0])
-@pytest.mark.timeout(60 * 4)
+@pytest.mark.parametrize("burn", [0, 1])
+@pytest.mark.timeout(60 * 6)
 def test_sigma_delta(request, burn):
     test_name = "test_sigma_delta"
 
@@ -131,17 +140,19 @@ def test_sigma_delta(request, burn):
     xscope_file = Path(f"logs/{test_name}_trace_{burn}_{num_loops}.vcd")
 
     if using_simuator:
-        run_output = run_on_sim(tmp_binary, xscope_file, burn, num_loops)
+        run_output = run_on_sim(tmp_binary, xscope_file, burn, num_loops, num_loops) #pause_at == num_loops so no pause
     else:
-        run_output = run_on_hw(tmp_binary, xscope_file, burn, num_loops)
+        run_output = run_on_hw(tmp_binary, xscope_file, burn, num_loops, num_loops) #pause_at == num_loops so no pause
 
     tmp_binary.unlink() # delete
 
     print("Parsing terminal output...")
-    pwm_lookup, max_pwm_magnitude = parse_output(run_output)
+    pwm_lookup, max_pwm_magnitude, timedout = parse_output(run_output)
     print("PWM Table (hex→index):")
     for k, v in pwm_lookup.items():
         print(f"  {hex(k)} → {v}")
+
+    print(f"SD thread timed out: {timedout}")
 
     print("Parsing XSCOPE output...")
     pwm_vals = parse_xscope(xscope_file, pwm_lookup)
@@ -149,6 +160,7 @@ def test_sigma_delta(request, burn):
     pwm_array = np.array(pwm_vals, dtype=float)
     pwm_array /= max_pwm_magnitude # scale to +-1
     print(f"\nPWM output array shape: {pwm_array.shape}")
+
 
 
     # Filter like the one on demo board

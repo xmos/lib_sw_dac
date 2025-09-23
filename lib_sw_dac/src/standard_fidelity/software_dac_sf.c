@@ -43,6 +43,11 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
 #if !defined(SW_DAC_SD_TEST_MODE)
     init_ports(dac_ports, clk);
 #endif
+    sd->timeout_period = 70;    // at 1.5MHz this will be 66.666 so set slightly above
+    sd->timeout_word = 0x0ff0;  // 50% duty cycle 16b word
+    sd->timeout_resid = hwtimer_alloc();
+    sd->timeout_occurred = 0;
+
     sd->clock_block = clk;
     memcpy(&sd->out_ports[0], dac_ports, 2 * sizeof(port_t));
     sd->sd_coeffs = &sd_coeffs[0][0];
@@ -367,12 +372,7 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
 }
 
 void sigma_delta_task_sf(sw_dac_sf_t *sd, chanend_t c_in) {
-    hwtimer_t tmr = hwtimer_alloc();
-    sd->timeout_period = 70;    // at 1.5MHz this will be 66.666 so set slightly above
-    sd->timeout_word = 0x0ff0;  // 50% duty cycle
-    sd->timeout_resid = tmr;
-    sd->timeout_occurred = 0;
-    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(tmr) + sd->timeout_period + 500); // Allow some extra cycles for entry
+    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(sd->timeout_resid) + sd->timeout_period + 500); // Allow some extra cycles for entry
     
     sigma_delta_1_5(sd, c_in);
 }

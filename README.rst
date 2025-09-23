@@ -23,18 +23,14 @@ Features
 ********
 
 * Supports 48000, 96000 and 192000 Hz sample rate, stereo output
-* Uses two hardware threads, two one-bit ports, one clock-block and 32 kB of RAM
+* Uses two hardware threads, two one-bit ports, one timer, one clock-block and 32 kB of RAM
 
 ************
 Known issues
 ************
 
 * Fixed configuration only currently (SF = Standard Fidelity)
-* 192kHz SD requires 85 MHz thread speed (max 7 threads at 600 MHz core clock)
-* The API requires that the software DAC is continually fed samples at the input
-  sample rate. Failure to do so will result in full scale outputs glitches. Please
-  ensure your application disables the hardware output stage before stopping
-  feeding samples.
+* 192 kHz input requires 85 MHz thread speed (max 7 threads at 600 MHz core clock). 96 kHz and 48 kHz can support 8 used threads.
 
 ****************
 Development repo

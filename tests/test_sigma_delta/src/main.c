@@ -5,6 +5,7 @@
 #include <xcore/parallel.h>
 #include <xcore/thread.h>
 #include <xcore/select.h>
+#include <xcore/hwtimer.h>
 #include <xs1.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,15 +16,42 @@
 
 DECLARE_JOB(sigma_delta_task_sf,    (sw_dac_sf_t *, chanend_t));
 
+int running = 1;
 
-DECLARE_JOB(test_app, (chanend_t, chanend_t, chanend_t, int, int));
-void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, int n_loops) {
+
+DECLARE_JOB(test_consumer, (chanend_t, chanend_t, int));
+void test_consumer(chanend_t port_l, chanend_t port_r, int burn) {
     xscope_mode_lossless();
+        
+    if(burn){
+        local_thread_mode_set_bits(thread_mode_fast); // Always issue
+    }
+
+    hwtimer_t tmr = hwtimer_alloc();
+
+    uint32_t time_trig = hwtimer_get_trigger_time(tmr);
+    while(running){
+        time_trig += (XS1_TIMER_HZ / 1500000); // Throttle consumption of outs because we are working over a chanend
+        hwtimer_wait_until(tmr, time_trig);
+        unsigned pwm_l = chanend_in_word(port_l);
+        unsigned pwm_r = chanend_in_word(port_r);
+        // printf("port: 0x%x 0x%x\n", pwm_l, pwm_r);
+
+        xscope_int(0, pwm_l);
+        xscope_int(1, pwm_r);
+    }
+}
+
+
+DECLARE_JOB(test_producer, (sw_dac_sf_t*, chanend_t, int, int, int));
+void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, int pause_at) {
+    hwtimer_t tmr = hwtimer_alloc();
     
     if(burn){
         local_thread_mode_set_bits(thread_mode_fast); // Always issue
     }
-    int n_sd_loops = 5;
+
+    int n_sd_loops = 5; // How many samples to pass in each loop
 
     const int num_buffs_in_sd = 4;
 
@@ -31,9 +59,6 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
     int sample_idx = 0;
 
     for(int loop_count = 0; loop_count < n_loops; loop_count++){
-        // printf("loop: %d\n", loop_count);
-        // xscope_int(0, loop_count);
-
         int idx = loop_count % num_buffs_in_sd;
         
         // Send to SD modulator/PWM
@@ -46,18 +71,20 @@ void test_app(chanend_t c_sd_in, chanend_t port_l, chanend_t port_r, int burn, i
             sample_idx++;
         }
 
+        if(loop_count == pause_at){
+            const int num_milliseconds_pause = 20;
+            hwtimer_delay(tmr, XS1_TIMER_KHZ * num_milliseconds_pause);
+        }
+
         chanend_out_word(c_sd_in, (int) &data[idx][0]);
 
-        for(int n_outs = 0; n_outs < n_sd_loops; n_outs++){
-            unsigned pwm_l = chanend_in_word(port_l);
-            unsigned pwm_r = chanend_in_word(port_r);
-            // printf("port: 0x%x 0x%x\n", pwm_l, pwm_r);
-            xscope_int(0, pwm_l);
-            xscope_int(1, pwm_r);
-        }
     }
+    running = 0; // Stop consuming samples in consumer app
 
+    printf("Timeout: %d\n", sd->timeout_occurred);
     printf("Completed test app\n");
+    hwtimer_delay(tmr, XS1_TIMER_MHZ); // FLush print
+
     _Exit(0);
 }
 
@@ -68,15 +95,15 @@ void burn(void){
 
 
 int main(int argc, char *argv[]) {
-    if(argc != 3){
-        printf("Error - need to pass burn and loops as args\n");
+    if(argc != 4){
+        printf("Error - need to pass burn and loops and pause_at as args\n");
         _Exit(-1);
     }
     int burn = atoi(argv[1]);
     int n_loops = atoi(argv[2]);
+    int pause_at = atoi(argv[3]);
 
-    printf("Started test app, loops: %d, burn: %d\n", burn, n_loops);
-
+    printf("Started test app, burn: %d, n_loops: %d, pause_at: %d\n", burn, n_loops, pause_at);
 
     channel_t c_sd_ip = chan_alloc();
     channel_t c_sd_op_0 = chan_alloc();
@@ -95,19 +122,25 @@ int main(int argc, char *argv[]) {
                     1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                     3.0/157, 0.63/157);        // pwm comp x2, x3
 
+    // For xscope runs, we cannot sustain 2 x 1.5MHz 32b streams so make timeout large
+    if(n_loops == pause_at){
+        sd.timeout_period = 100000;
+    }
+
+
     if(burn){
     PAR_JOBS(
         PJOB(burn,                  ()),
         PJOB(burn,                  ()),
         PJOB(burn,                  ()),
-        PJOB(burn,                  ()),
-        PJOB(burn,                  ()),
-        PJOB(test_app,              (c_sd_ip.end_a, c_sd_op_0.end_b, c_sd_op_1.end_b, burn, n_loops)),
+        PJOB(test_producer,         (&sd, c_sd_ip.end_a, burn, n_loops, pause_at)),
+        PJOB(test_consumer,         (c_sd_op_0.end_b, c_sd_op_1.end_b, burn)),
         PJOB(sigma_delta_task_sf,   (&sd, c_sd_ip.end_b))
         );
     } else {
     PAR_JOBS(
-        PJOB(test_app,              (c_sd_ip.end_a, c_sd_op_0.end_b, c_sd_op_1.end_b, burn, n_loops)),
+        PJOB(test_producer,         (&sd, c_sd_ip.end_a, burn, n_loops, pause_at)),
+        PJOB(test_consumer,         (c_sd_op_0.end_b, c_sd_op_1.end_b, burn)),
         PJOB(sigma_delta_task_sf,   (&sd, c_sd_ip.end_b))
         );
 
