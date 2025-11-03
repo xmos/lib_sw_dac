@@ -21,7 +21,10 @@ def qxx_to_float(arr_int, q = 31):
 
 @pytest.mark.parametrize("test_fs", [48000, 
                                      96000, 
-                                     192000
+                                     192000,
+                                     44100,
+                                     88200,
+                                     176400
                                      ])
 def test_filter_thdn(test_fs):
   # gen sig
