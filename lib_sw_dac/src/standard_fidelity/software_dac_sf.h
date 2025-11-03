@@ -80,9 +80,9 @@ typedef struct {
     // which needs a 24 var long state buffer
     int32_t filter_stage4_out[CHANNELS][32];
     
-    int32_t pre_distort_in_[CHANNELS][33];
-    int32_t pre_distort_pwm_comp_history_[CHANNELS][34];
-    int32_t pre_distort_flat_comp_history_[CHANNELS][33];
+    int32_t pre_distort_in_[CHANNELS][42];
+    int32_t pre_distort_pwm_comp_history_[CHANNELS][43];
+    int32_t pre_distort_flat_comp_history_[CHANNELS][42];
     int32_t *pre_distort_in[CHANNELS];
     int32_t *pre_distort_pwm_comp_history[CHANNELS];
     int32_t *pre_distort_flat_comp_history[CHANNELS];

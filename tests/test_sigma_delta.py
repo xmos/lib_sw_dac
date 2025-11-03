@@ -146,8 +146,8 @@ def test_sigma_delta(request, burn):
 
 
     # Test pass/fail
-    THDN_limits_xrun = {48000:-70, 96000:-65, 192000:-63}
-    THDN_limits_sim = {48000:-40, 96000:-37, 192000:-34} # We have less signal to measure so lower vals
+    THDN_limits_xrun = {48000:-70, 96000:-65, 192000:-63, 44100:-70, 88200:-70, 176400:-70}
+    THDN_limits_sim = {48000:-40, 96000:-37, 192000:-34, 44100:-40, 88200:-40, 176400:-40} # We have less signal to measure so lower vals
 
     for sample_rate in THDN_limits_sim.keys():
         print(f"Resampling to: {sample_rate}")
