@@ -11,7 +11,7 @@ set(APP_DEPENDENT_MODULES 	"lib_sw_dac")
 
 set(APP_INCLUDES    		src)
 
-set(COMMON_FLAGS -O3 -g -report)
+set(COMMON_FLAGS -O3 -g -report -mcmodel=large)
 
 set(APP_COMPILER_FLAGS_48000 ${COMMON_FLAGS} -DFREQ=48000)
 set(APP_COMPILER_FLAGS_96000 ${COMMON_FLAGS} -DFREQ=96000)

@@ -13,9 +13,10 @@ set(APP_DEPENDENT_MODULES 	"lib_sw_dac"
 set(APP_PCA_ENABLE 			OFF) # TODO why does PCA cause build error
 
 set(APP_COMPILER_FLAGS    	-O3
-							-g
-							-report
-							-fcmdline-buffer-bytes=1024)
+                                -mcmodel=large
+				-g
+				-report
+				-fcmdline-buffer-bytes=1024)
 
 set(APP_INCLUDES    		src)
 
