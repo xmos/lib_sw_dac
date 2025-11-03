@@ -27,6 +27,10 @@ extern int32_t filter_16x_coefficients[2][8]; // x2_i8_o16_n16, x2_i4_o8_n16, x2
 // poly x125/64 768 -> 1500
 extern int32_t filter_banks_125_64_banks[16][32][8]; // x125_64_i4_o8_n16_phase_<>
 
+// poly x5/2 352.8 -> 882
+extern int32_t filter_x5_2_linear[40];
+extern int32_t filter_x5_2_banks[5][8];
+
 #define FILTER_HEADROOM 1
 #define ATT(x) ((x))
 //#define A(x) ((int)(((x) * 0.5125)+0.5))
@@ -51,6 +55,12 @@ void filter_x125_64_i4_o8_n16_phase_67b(int32_t *output, int32_t *input, int32_t
 void filter_x125_64_i4_o8_n16_phase_5(int32_t *output, int32_t *input, int32_t *filter);
 void filter_x125_64_i4_o8_n16_phase_a(int32_t *output, int32_t *input, int32_t *filter);
 void filter_x125_64_i4_o8_n16_phase_f(int32_t *output, int32_t *input, int32_t *filter);
+// poly x5/2 8 -> 20 samples
+void filter_x5_2_i8_o20_n40(int32_t *output, int32_t *input, int32_t *filter);
+// poly x5/2 4 -> 10 samples
+void filter_x5_2_i4_o10_n40(int32_t *output, int32_t *input, int32_t *filter);
+// poly x5/2 2 -> 5 samples
+void filter_x5_2_i2_o5_n40(int32_t *output, int32_t *input, int32_t *filter);
 
 void filter_shuffle_n24_n8(int32_t *samples);
 void filter_shuffle_n24_n16(int32_t *samples);
