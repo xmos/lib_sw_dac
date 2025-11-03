@@ -1,3 +1,5 @@
+// Copyright 2025 XMOS LIMITED.
+// This Software is subject to the terms of the XMOS Public Licence: Version 1.
     .issue_mode dual
 
 #define GROUP_NAME filter_x5_2_n16
