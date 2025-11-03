@@ -354,7 +354,7 @@ static inline int filter_x125_147_i5_o8_n2000_phased(sw_dac_sf_t *sd, int32_t *o
 }
 
 // times 5000 divide by 147: 44,100 -> 1,500,000
-static int filter_x5000_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x5000_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][39] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_48);
     filter_x2_i1_o2_n80(&sd->filter1[ch][14], sd->filter0[ch], &filter_hashed_81_2[0][0][0]);
     filter_x2_i2_o4_n32(&sd->filter2[ch][12], sd->filter1[ch], &filter_hashed_25_4[0][0][0]);      // 25_4 is incorrectly defined and duplicated
@@ -372,7 +372,7 @@ static int filter_x5000_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sa
 }
 
 // times 2500 divide by 147: 88,200 -> 1,500,000
-static int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][15] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_96);
     // Input samples filter0[0..15], Two FIRs (even odd) on [0..15] produce two samples
     // Output samples go into filter1[7..8], so that there are 9 samples in filter1
@@ -391,7 +391,7 @@ static int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sa
 }
 
 // times 1250 divide by 147: 176,400 -> 1,500,000
-static int filter_x1250_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+int filter_x1250_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     sd->filter0[ch][7] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_192);     // This is ok for 176,400
     // Multiply by 2, to 352,800
     // Input samples filter0[0..7], Two FIRs (even odd) on [0..7] produce two samples
