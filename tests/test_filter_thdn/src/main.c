@@ -41,7 +41,7 @@ extern int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sa
 #define filter_api filter_x2500_147
 #define highest_bank 147
 
-#elif FREQ == 1764000
+#elif FREQ == 176400
 extern int filter_x1250_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x1250_147
 #define highest_bank 147
