@@ -156,7 +156,7 @@ def analyse_extracted_trace(events, app_thread_id, sd_0_thread_id, sd_1_thread_i
 
     return pcm_rate_hz, thread_1_pause_pc, pwm_output_rate
 
-@pytest.mark.parametrize("sample_rate", [48000, 96000, 192000, 44100, 88200, 1764000])
+@pytest.mark.parametrize("sample_rate", [48000, 96000, 192000, 44100, 88200, 176400])
 @pytest.mark.parametrize("burn", [1, 0])
 def test_thread_performance_sf(request, sample_rate, burn):
     cwd = Path(request.fspath).parent
