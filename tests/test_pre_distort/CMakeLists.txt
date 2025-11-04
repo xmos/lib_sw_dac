@@ -11,10 +11,10 @@ set(APP_DEPENDENT_MODULES 	"lib_sw_dac")
 
 set(APP_PCA_ENABLE 			OFF)
 
-set(APP_COMPILER_FLAGS    	-O3
+set(APP_COMPILER_FLAGS          -O3
                                 -mcmodel=large
-							-g
-							-report)
+				-g
+				-report)
 
 set(APP_INCLUDES    		src)
 

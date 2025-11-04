@@ -14,10 +14,10 @@ set(APP_PCA_ENABLE 			OFF) # TODO why does PCA cause build error
 
 set(APP_COMPILER_FLAGS          -O3
                                 -mcmodel=large
-				-g
-				-report
-				-DSW_DAC_SD_TEST_MODE=1
-				-fcmdline-buffer-bytes=1024)
+                                -g
+                                -report
+                                -DSW_DAC_SD_TEST_MODE=1
+                                -fcmdline-buffer-bytes=1024)
 
 set(APP_INCLUDES    		src)
 
