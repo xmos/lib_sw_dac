@@ -90,8 +90,7 @@ int main(void) {
             x_history[i] = sin1500[(i+j)%1500]>>1;
         }
 
-        int n_vec = (step + 7) >> 3;
-        pre_distort(y_out, x_history, pwm_comp_history, flat_comp_history, x2x3_array, n_vec, sc_array);
+        pre_distort(y_out, x_history, pwm_comp_history, flat_comp_history, x2x3_array, step, sc_array);
 
         for(int i = 0; i < step; i++) {
             int x = sin1500[(i+j)%1500]>>1;

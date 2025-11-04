@@ -463,15 +463,14 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
                 break;
             }
             int oindex = SDAC_BUF_L;
-            int n_vec = (n + 7) >> 3;
-            // TODO: make pre_distort and clip_and_scale N long, where N = 8, 16, 32.
+
             for(int c = 0; c < 2; c++) {
                 pre_distort(&data[i][oindex],
                             sd->pre_distort_in[c],
                             sd->pre_distort_pwm_comp_history[c],
                             sd->pre_distort_flat_comp_history[c],
                             sd->comp_px3_px2_fx2_fx3,
-                            n_vec,
+                            n,
                             sd->scale);
 
                 oindex = SDAC_BUF_R;
