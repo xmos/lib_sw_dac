@@ -22,13 +22,13 @@ FUNCTION_NAME:
     std r4, r5, sp[0]
     std r6, r7, sp[1]
     std r8, r9, sp[2]
-    ldw r7, sp[NSTACKWORDS+1]
-    { ldc   r9, 32                ; ldw r6, sp[NSTACKWORDS+2] }
-    ldw r4, sp[NSTACKWORDS+3]
-    ldw r5, sp[NSTACKWORDS+4]
+    { ldc   r9, 32                ; ldw r5, sp[NSTACKWORDS+2] }
+    { ldw r7, sp[NSTACKWORDS+1]   ; add r6, r5, 7 }
+    { ldw r4, sp[NSTACKWORDS+3]   ; shr r6, r6, 3 }
+    { stw r10, sp[6]              ; shl r10, r6, 5 }
 loop_4x:
     { vldr  r11[0]                ; nop               } // x
-    { vlmul r1[0]                 ; ldaw r11, sp[6]   } // x
+    { vlmul r1[0]                 ; ldaw r11, sp[8]   } // x
     { vstr  r11[0]                ; nop               } // x_squared
     { vlmul r1[0]                 ; add r11, r11, r9  } // x
     { vstr  r11[0]                ; sub r8, r11, r9   } // x_cubed
@@ -53,8 +53,8 @@ loop_4x:
     { vladd r11[0]                ; nop             }  // flat_comp[-1]
     // now clip and scale
     
-    { vlmul r4[0]                 ;                 } // scale1
-    { vlmul r5[0]                 ;                 } // scale2    // todo: combine
+    { vlmul r4[0]                 ; add r4, r4, r9  } // scale1
+    { vlmul r4[0]                 ; sub r4, r4, r9  } // scale2 
     
     { vstr  r0[0]                 ; add r11, r1, r9  }  // o[0]
 
@@ -62,6 +62,17 @@ loop_4x:
     { sub r6, r6, 1               ; add r3, r3, r9 }
     { add r2, r2, r9              ; bt r6, loop_4x }
 
+    { ldw r10, sp[6]              ; add r6, r10, 4 } // r6 = 4 * ((n+7)&~7) + 4
+    { nop                         ; sub      r1, r1, r6 }
+    { ldw      r11, r1[r5]        ; nop }                  // x[-1]         = x[n-1]
+    { stw      r11, r1[0]         ; sub      r2, r2, r6 }
+    { ldw      r11, r2[r5]        ; nop }                  // pwm_comp[-1]  = pwm_comp[n-1]
+    { stw      r11, r2[0]         ; sub      r2, r2, 4 }
+    { ldw      r11, r2[r5]        ; nop }                  // pwm_comp[-2]  = pwm_comp[n-2]
+    { stw      r11, r2[0]         ; sub      r3, r3, r6 }
+    { ldw      r11, r3[r5]        ; nop }                  // flat_comp[-1] = flat_comp[n-1]
+    { stw      r11, r3[0]         ; nop }
+    
     ldd r4, r5, sp[0]
     ldd r6, r7, sp[1]
     ldd r8, r9, sp[2]

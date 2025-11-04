@@ -48,8 +48,8 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
 
     // Init pre_distort components, all q30
     for(int i = 0; i < 8; i++) {   // TODO: the compiler probably hoists these constants.
-        sd->scale1[i] = 0x40000000 * scale / limit * 2;
-        sd->scale2[i] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
+        sd->scale[i] = 0x40000000 * scale / limit * 2;
+        sd->scale[i+8] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
         sd->comp_px3_px2_fx2_fx3[i+8*0] = 0x40000000 * p_x3;
         sd->comp_px3_px2_fx2_fx3[i+8*1] = 0x40000000 * p_x2;
         sd->comp_px3_px2_fx2_fx3[i+8*2] = 0x40000000 * f_x2;
@@ -472,12 +472,7 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
                             sd->pre_distort_flat_comp_history[c],
                             sd->comp_px3_px2_fx2_fx3,
                             n_vec,
-                            sd->scale1, sd->scale2);
-                // roll history
-                sd->pre_distort_in               [c][-1] = sd->pre_distort_in               [c][n-1];
-                sd->pre_distort_flat_comp_history[c][-1] = sd->pre_distort_flat_comp_history[c][n-1];
-                sd->pre_distort_pwm_comp_history [c][-1] = sd->pre_distort_pwm_comp_history [c][n-1];
-                sd->pre_distort_pwm_comp_history [c][-2] = sd->pre_distort_pwm_comp_history [c][n-2];
+                            sd->scale);
 
                 oindex = SDAC_BUF_R;
             }

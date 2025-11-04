@@ -56,11 +56,8 @@ int32_t x2x3_array[32] = {
     -4294, -4294, -4294, -4294, -4294, -4294, -4294, -4294
 };
 
-int32_t sc1_array[8] = {
+int32_t sc_array[8] = {
     2136939503, 2136939503, 2136939503, 2136939503, 2136939503, 2136939503, 2136939503, 2136939503
-};
-
-int32_t sc2_array[8] = {
     385000000, 385000000, 385000000, 385000000, 385000000, 385000000, 385000000, 385000000
 };
 
@@ -94,7 +91,7 @@ int main(void) {
         }
 
         int n_vec = (step + 7) >> 3;
-        pre_distort(y_out, x_history, pwm_comp_history, flat_comp_history, x2x3_array, n_vec, sc1_array, sc2_array);
+        pre_distort(y_out, x_history, pwm_comp_history, flat_comp_history, x2x3_array, n_vec, sc_array);
 
         for(int i = 0; i < step; i++) {
             int x = sin1500[(i+j)%1500]>>1;
@@ -103,10 +100,6 @@ int main(void) {
             xassert(abs(y_out[i] - y) < 2900); // experimental, about 20 bits of precision
         }
 
-        x_history[-1] = x_history[step-1];
-        flat_comp_history[-1] = flat_comp_history[step-1];
-        pwm_comp_history[-1]  = pwm_comp_history[step-1];
-        pwm_comp_history[-2]  = pwm_comp_history[step-2];
         j += step;
     }
     printf("pass\n");
