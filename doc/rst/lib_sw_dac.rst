@@ -579,493 +579,185 @@ and the bottom trace is the right output.
 
    PWM Example Output
 
-|newpage|
 
-***********************************
-Software DAC Implementation Details
-***********************************
+*************************************
+Standard Fidelity Software DAC Design
+*************************************
 
-Architecture
-------------
+The standard fidelity software DAC aims to output good quality audio on
+readily available and simple hardware. To this end, the system has been
+designed using the following parameters:
 
-This document explains the implementation of a software DAC on one or more
-XCORE threads. The software DAC takes a PCM signal, for example 32 bits @
-48 kHz, and produces a PDM/PWM signal on a one bit port that, when filtered
-through a low pass filter, produces the analogue equivalent of the PCM
-signal.
+* A single master clock of 24 MHz is assumed. This allows one to share the
+  master clock with the clock for the XCORE device, potentially reducing
+  the BOM.
 
-The purpose of the software DAC is, in an audio context, to be able to
-drive line-level, headphones, or class D directly from an XMOS chip. It may
-also be useful in other environments where a DAC is required.
-
-As a running example, we assume that the software DAC reproduces a 48 kHz
-32-bit PCM stream. But the principles can be applied to other bit-depths,
-sample rates, or domains.
-
-General structure
------------------
-
-The general structure of the software DAC is as follows. In a loop:
-
-#. A 48 kHz N 32-bit sample arrives
-
-#. high precision 2x upsampler; making two 96 kHz 32-bit samples
-
-#. medium precision 2x upsampler, ran twice, making four 192 kHz 32-bit samples
-
-#. low precision 2x upsampler, ran four times, making eight 384 kHz 32-bit samples
-
-#. Sigma-delta ran on each of the eight 384 kHz samples, producing eight
-   quantised values
-
-#. Quantised values are output as PWM or PDM
-
-When there is more than one sample, these six steps are all executed once
-for each channel.
-
-The sigma delta can be ran more than once on the 384 kHz sample, producing
-an oversampled sigma delta value. This allows a trade-off between the
-number of quantised values and the pulse rate on the output.
-
-PWM output
-----------
-
-We describe PWM output as a stream of bits that is output on a
-master-clock. The master clock frequency dictates the resolution of the
-PWM.
-
-We assume that PWM outputs a discrete number of levels, for example 9
-levels (-4,-3,-2,-1,0,+1,+2,+3,+4). As there are 9 levels it need 8 single bits
-to represent this (``0000.0000``, ``0000.0001``, ``0000.0011``, ``0000.0111``, 
-``0000.1111``, ``0001.1111``, ``0011.1111``, ``0111.1111``, ``1111.1111``).
-We are using a ``.`` for ease of recognising where the '0' value is.
-
-In order to create a signal with few harmonics, the falling and rising
-edges have to be driven symmetrically, eg the value -2 would be driven as
-``0000.0011-1100.0000``. We are using a ``-`` to denote the point of
-symmetry.
-
-Considerations:
-
-* Each PWM is represented by exactly the same number of master clock cycles
-  (16 in the example above)
-
-* There is a trade-off between the number of levels and the pulse-rate of
-  the PWM
-
-* It does not have to be strictly symmetrical; a slightly different number
-  of bits can be driven high on the left and right side, providing an
-  opportunity for some extra resolution. Eg ``0000.0011-1110.0000``
-  represents a value that is somewhere between -2 and -1.
-
-
-Precise output timings
-----------------------
-
-The PWM or PDM output has to be driven on precise times; as such, the
-software is scheduled in quanta that enables all ports to be kept busy all
-the time. (An alternative is to use timed outputs for the edges, we are
-ignoring that alternative here as the place where the output has to happen
-moves in time with the PWM value.)
-
-As an example, we describe a schedule that uses a 49.152 MHz master-clock
-to drive the PWM signal; a 48 kHz input sample rate, and four channels.
-Please note that these numbers are examples only.
-
-* We use a PWM with 65 levels [-32, -31, -30, ..., -1, 0, 1, ..., 32]
-
-* This requires 64 + 64 = 128 bits to output
-
-* 128 bits at 49.152 MHz gives a pulse rate of 384 kHz (49.152 MHz / 128)
-
-* Hence, we need to create at least eight PWM levels per 48 kHz cycle.
-
-* We have 1,024 bit times per 48 kHz sample (1024 x 48 = 49.152).
-
-* They are output in chunks of 32 bits on a buffered port, requiring 32
-  outputs per channel. A sequence of four outputs outputs a single PWM
-  level (4 x 32 = 128 bits). A sequence of 8 x 4 outputs outputs the 1024
-  bits.
-
-* At 48,000 Hz sample rate with a 600 MHz processor running 8 threads we
-  have 75,000,000/48,000 = 1562 issue slots between samples
-
-* 32 outputs spread evenly over 1562 issue slots means that outputs have to
-  happen every 1562 / 32 = 48 issue slots.
-
-This creates 32 quanta of 48 issue slots each that could, for example, be
-filled as follows. We assume we have two PWM buffers A and B (described
-later, A and B are double buffers). We output bits from PWM buffer A, and
-fill PWM buffer B:
-
-#. Output bits 0..31 on all channels, this output is from buffer A, as are
-   all the subsequent outputs.
-
-   Receive 48 kHz sample on channels 1,
-   2, 3
-
-#. Output bits 32..63 on all channels.
-   
-   Run high precision 2x upsampler on
-   channel 0
-
-#. Output bits 64..95 on all channels.
-   
-   Run medium precision 2x upsampler
-   twice on channel 0
-   
-#. Output bits 96..127 on all channels.
-   
-   Run low precision 2x upsampler four
-   times on channel 0
-   
-#. Output bits 128..159 on all channels.
-   
-   Run delta sigma twice on upsamples
-   0 & 1, store output in PWM array B
-   
-#. Output bits 160..191 on all channels.
-   
-   Run delta sigma twice on upsamples
-   2 & 3, store output in PWM array B
-   
-#. Output bits 192..223 on all channels.
-   
-   Run delta sigma twice on upsamples
-   4 & 5, store output in PWM array B
-   
-#. Output bits 224..256 on all channels.
-   
-   Run delta sigma twice on upsamples
-   6 & 7, store output in PWM array B
-
-Repeat this sequence three more times for channels 1, 2, and 3. then at the end,
-we swap buffers A and B and continue for the next iteration.
-
-For this scheme to work, we need to fit an ``Output`` and an activity
-(upsample; delta-sigma, etc), inside 48 issue slots.
-
-As stated before, this is just an example for quad channel with a master
-clock of 49.152 MHz and upsampled eight times. Other schedules can be
-created to, for example, run the delta-sigma twice as often on half the
-number of channels and drive the PWM at a higher or asymmetric pulse rate,
-and/or use a different number of PWM levels.
-
-Output clock
-------------
-
-PWM output can either be generated at 49.152 MHz by clocking off the
-secondary PLL (and by using an external flop to realign the edge), or it
-can be generated at 50.000 MHz by using the reference clock divided by 2.
-
-In order to achieve the latter, an SRC has to be implemented from 49.152 to
-50 MHz, which is a ratio of 3125 : 3072 (5^4 : 3 x 2^10). Hence, the signal
-has to be upsampled by 3,125 x, and then be low pass filtered, and
-subsampled by 3,072 x.
-
-Running this sample rate conversion at 384 kHz enables us to use a fairly
-imprecise filter. If we create a filter with, say, 3 x 3,125 taps, then we
-need 3,125 phases of the filter with four taps each, where the phases move
-over the filter
-
-Implementation
-==============
-
-Data output
------------
-
-The output function uses
-
-* r0, r1, r3, r11 as scratch registers
-
-* r9 as a pointer in the output data structure (see later)
-
-It requires 8 issue slots
-
-High precision filter for 2x upsampling
----------------------------------------
-
-The high precision filter uses
-
-* r2, r3, and r11 as scratch registers
-
-* r5 as a pointer to an array of 40 input samples, with 1 word in front that will
-  be overwritten
-
-* r4 points to an array of at least 8 words where the 2 output samples will
-  be written (with 6 words being overwritten with random values)
-
-* The filter is assumed to be stored in a global variable
-  ``filter_hashed_80_2`` comprising 5 x 2 x 8 words.
-
-It requires XXX issue slots
-
-Medium precision filter for 4x upsampling
------------------------------------------
-
-The medium precision filter uses
-
-* r2, r3, and r11 as scratch registers
-
-* r4 as a pointer to an array of 16 input samples, with 2 words in front that will
-  be overwritten
-
-* r1 points to an array of at least 8 words where the 4 output samples will
-  be written (with 4 words being overwritten with random values)
-
-* The filter is assumed to be stored in a global variable
-  ``filter_hashed_28_4`` comprising 4 x 4 x 8 words.
-
-It requires XXX issue slots
-
-Low precision filter for 8x upsampling
---------------------------------------
-
-The low precision filter uses
-
-* r2, r3, and r11 as scratch registers
-
-* r1 as a pointer to an array of 16 input samples, with 4 words in front that will
-  be overwritten
-
-* r0 points to an array of 8 words where the 8 output samples will
-  be written
-
-* The filter is assumed to be stored in a global variable
-  ``filter_hashed_16_8`` comprising 2 x 8 x 8 words.
+* 1.5 MHz sample rate for an eight level PWM.
   
-It requires XXX issue slots
+* Support for 44100, 48000, 88200, 96000, 176400, 192000 Hz sample rates.
 
-Sigma delta
------------
+* Pre-distort in order to reduce the effect of second and third harmonics
 
-The sigma delta filter uses
+This produces a logical UPWM signal with a dynamic range of 122 dB. It
+supports a variety of output stages that can achieve up to 122 dB dynamic
+range.
 
-* r1, r3, and r11 as scratch registers
+Alternative designs could use:
 
-* r2 as its input value
+* Multiple master clocks for different frequency families. This adds BOM
+  but simplifies filtering and has the potential to slightly increase the
+  SNR
 
-* r0 to point to the state (11 words; the state is held in words 3..7;
-  words 8..10 are overwritten and unused, words 0..2 are used for the input
-  and output values).
+* Master clocks that are a whole multiple of the input frequencies, eg,
+  24.576 MHz rather than 24.000 MHz. This also simplifies filtering.
 
-* The matrix coefficients are assumed to be store in a global variable
-  ``xxx`` comprising 5 x 8 words. For the five rows of data, the first
-  value is the multiple of the input value. The second value at index [1] is
-  the multiplicand for the feedback, and values 3..7 are the values for
-  each of the accumulators.
+* A significantly higher master clock, for example 48 MHz. This reduces the
+  noise floor and simplifies the hardware filter as the pulse rate can be
+  doubled to 3 MHz.
 
-* A PWM lookup table is assumed to be stored in ``pwm_tableXXX``
+* A significantly lower master clock, enabling FETs to be driven directly.
+  For example, 600 kHz.
 
-* Output is written to register ``XXX``
+* Increase the number of taps in the filters, enabling finer control over
+  the ripple in the signal and drop off in the 20-22 kHz band.
 
-It requires 16 issue slots + PWM lookup
+* Use minimum phase filters in order to reduce the latency of the DAC. This
+  is simply a matter of changing the filter coefficients.
 
-
-PWM Output data-structure
--------------------------
-
-The output comprises an array comprising 4 x 8 x 4 x 8 = 1024 bytes that stores
-port-identifiers and values for for channels as follows (assuming quad
-channel):
-
-  ===== ======= ======= ===== ===== ======= ======= ===== ===== =========
-        0x00    0x04    0x08  0x0C  0x10    0x14    0x18  0x1C  bits
-  ===== ======= ======= ===== ===== ======= ======= ===== ===== =========
-  0x000 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 0..31
-  0x020 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 32..63
-  0x040 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 64..95
-  0x060 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 95..127
-  0x080 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 128..159
-  ... 
-  0x360 prtid 0 prtid 1 val 0 val 1 prtid 2 prtid 3 val 2 val 3 992..1023
-  ===== ======= ======= ===== ===== ======= ======= ===== ===== =========
-
-For stereo the data is stored in an array half the size as follows:
-
-  ===== ======= ======= ===== ===== =========
-        0x00    0x04    0x08  0x0C  bits
-  ===== ======= ======= ===== ===== =========
-  0x000 prtid 0 prtid 1 val 0 val 1 0..31
-  0x010 prtid 0 prtid 1 val 0 val 1 32..63
-  0x020 prtid 0 prtid 1 val 0 val 1 64..95
-  0x030 prtid 0 prtid 1 val 0 val 1 95..127
-  ...
-  0x1F0 prtid 0 prtid 1 val 0 val 1 992..1023
-  ===== ======= ======= ===== ===== =========
-
-The array is double buffered; that is one array is written by the
-sigma-delta modulators, whilst the other is being played out on the output
-pins.
-
-
-Part 2: going to the core clock
--------------------------------
-
-
-The general structure of the software DAC is as follows. In a loop:
-
-#. A 48 kHz N 32-bit sample arrives
-
-#. high precision 2x upsampler; making two 96 kHz 32-bit samples
-
-#. medium precision 2x upsampler, ran twice, making four 192 kHz 32-bit samples
-
-#. low precision 125/48x upsampler, ran four-five times, making eight-ten 500 kHz 32-bit samples
-
-#. Sigma-delta depth of -25..+25, represented by 50 quanta left and 50 quanta
-   right for a total of 100 quanta
-   
-#. Sigma-delta ran on each of the eight-ten 500 kHz samples, producing 800
-   to 1000 quantas. Over a period of one second:
-
-   * 48,000 samples will have arrived
-
-   * These have been upsampled to 500,000 samples
-
-   * These have produced 50,000,000 quanta
-
-#. The quanta are clocked out at 50 MHz.
-
-Timings
+Filters
 -------
 
-The basic timing unit is 500 us.
+The 48 kHz family is upsampled as follows:
 
-* 24 samples will have arrived
+* An input signal of 48,000 Hz is upsampled by 2x using a filter with 80
+  taps. This produces a signal of 96,000 Hz. The filter response is shown
+  in :numref:`x2_0`.
 
-* These have been upsampled to 250 samples
+.. _x2_0:
+.. figure:: ../images/x2_0.*
+   :width: 90%
 
-* These have produced 25,000 quanta, 3,125 bytes of data.
+   48,000 to 96,000 filter response
 
-This is comprised of two circular groups:
+* An input signal of 96,000 Hz (or an upsampled signal of 48,000 Hz) is
+  upsampled by 2x using a filter with 32 taps. This produces a signal of
+  192,000 Hz. The filter response is shown
+  in :numref:`x2_1`.
 
-* Loop 1 is 12 samples in, 125 samples out. This is a sequence:
+.. _x2_1:
+.. figure:: ../images/x2_1.*
+   :width: 90%
 
-  * Sample 0 produces 10 outputs, total 10
+   96,000 to 192,000 filter response
 
-  * Sample 1 produces 10 outputs, total 20
+* An input signal of 192,000 Hz (or an upsampled signal of 48,000/96,000
+  Hz) is upsampled by 2x using a filter with 16 taps. This produces a
+  signal of 384,000 Hz. The filter response is shown
+  in :numref:`x2_2`.
 
-  * Sample 2 produces 11 outputs, total 31
+.. _x2_2:
+.. figure:: ../images/x2_2.*
+   :width: 90%
 
-  * Sample 3 produces 10 outputs, total 41
+   192,000 to 384,000 filter response
 
-  * Sample 4 produces 11 outputs, total 52
+* Any input signal that has been upsampled to 384,000 Hz is upsampled by 2x
+  using a filter with 16 taps. This produces a signal of 768,000 Hz. The filter response is shown
+  in :numref:`x2_3`.
 
-  * Sample 5 produces 10 outputs, total 62
+.. _x2_3:
+.. figure:: ../images/x2_3.*
+   :width: 90%
 
-  * Sample 6 produces 10 outputs, total 72
+   384,000 to 768,000 filter response
 
-  * Sample 7 produces 11 outputs, total 83
+* Any input signal that has been upsampled to 768,000 Hz is upsampled by a
+  125x and downsampled by 64x using a filter with 2,000 taps. This produces
+  a signal of 1,500,000 Hz. The filter response is shown
+  in :numref:`x125_64`.
 
-  * Sample 8 produces 10 outputs, total 93
+.. _x125_64:
+.. figure:: ../images/x125_64.*
+   :width: 90%
 
-  * Sample 9 produces 11 outputs, total 104
+   768,000 to 1,500,000 filter response
 
-  * Sample 10 produces 10 outputs, total 114
+The 44.1 kHz family is upsampled as follows:
 
-  * Sample 11 produces 11 outputs, total 125
+* An input signal of 44,100 Hz is upsampled by 2x using a filter with 80
+  taps. This produces a signal of 88,200 Hz.
 
-* Loop 2 is a quantum loop that works as follows:
+* An input signal of 88,200 Hz (or an upsampled signal of 44,100 Hz) is
+  upsampled by 2x using a filter with 32 taps. This produces a signal of
+  176,400 Hz.
 
-  * PWM pulse 0, 100 bits in, total of 3 words and 4 bits
+* An input signal of 176,400 Hz (or an upsampled signal of 44,100/88,200
+  Hz) is upsampled by 2x using a filter with 16 taps. This produces a
+  signal of 344,800 Hz.
 
-  * PWM pulse 1, 100 bits in, total of 6 words and 8 bits
+* Any input signal that has been upsampled to 344,800 Hz is upsampled by 5x
+  and downsampled by 2x using a filter with 40 taps. This produces a signal
+  of 862,000 Hz.
 
-  * PWM pulse 2, 100 bits in, total of 9 words and 12 bits
+* Any input signal that has been upsampled to 862,000 Hz is upsampled by a
+  250x and downsampled by 147 using a filter with 2,000 taps. This produces
+  a signal of 1,500,000 Hz.
 
-  * PWM pulse 3, 100 bits in, total of 12 words and 16 bits
+Hence, any input signal is upsampled to 1.5 MHz after which a modulator
+picks one of eight UPWM levels which are output on a 24 MHz clock,
+producing a 1.5 MHz pulse rate.
 
-  * PWM pulse 4, 100 bits in, total of 15 words and 20 bits
+The 2x filters are all brick-wall filters with pass band in the audible
+band, and a stop band in the top half of the frequency bands. the filtes
+that are used prior to an up and down filters are designed to primarily
+null out the first, second, third, and fourth mirror images of the audio
+band; with a pass band in the audio band.
 
-  * PWM pulse 5, 100 bits in, total of 18 words and 24 bits
+Gibbs ringing
+-------------
 
-  * PWM pulse 6, 100 bits in, total of 21 words and 28 bits
+This sequence of upsamplers will, like any upsampler, cause ringing on an
+impulse response. For example, a signal [-1, -1, -1, -1, -1, +1, +1, +1,
++1, +1] will ring before and after the step change. Similarly, a signal
+[-1, -1, +1, +1, -1, -1] will convert to a sinewave with an amplitude of
+sqrt(2); well above full scale.
 
-  * PWM pulse 7, 100 bits in, total of 25 words exactly
+The standard fidelity configuration of the software dac is programmed to
+clip any ringing more than 1% above full scale; this to avoid instability
+in the modulator, and to give us maximum dynamic range for normal audio
+signals.
 
-THe two groups together repeat at the LCM of 125 and 8, which is 1,000
-upsampled values for 96 input values or 2 ms. This is not a loop that we
-can design our software around. So we have to accept that we don't unroll
-them completely.
+A different configuration can make a different trade-off. For example, the
+clipping can be set higher enabling the ringing to not be clipped at the
+expense of some dynamic range.
 
-Hence, we will need to have a PWM function that just appends 100 bits, and
-a upsampler that produces 10 or 11 samples, and make the PWM generator cope
-with getting either 10 or 11 samples thrown at it.
+Modulator
+---------
 
-This means that the whole loop will comprise:
+The modulator used is a 6th order modulator that outputs to eight levels
+[-3.5, -2.5, -1.5, -0.5, +0.5, +1.5, +2.5, +3.5]. The modulator can accept
+signals up to 0.81x full scale, which equals numbers in the range
++/-0.81x3.5 - [-2.835..2.835]. If numbers higher than that are presented
+the modulator may go unstable: it will need to use +4.5 or -4.5 which is
+not part of its output levels.
 
-* output  0;   Get samples L & R
+UPWM
+----
 
-* output  1;   2x upsample L
+The UPWM output is symmetric and outputs the following patterns:
 
-* output  2;   4x upsample L
+====== ====================
+Level  Pattern
+====== ====================
+-3.5   ``0000000010000000``
+-2.5   ``0000000111000000``
+-1.5   ``0000001111100000``
+-0.5   ``0000011111110000``
++0.5   ``0000111111111000``
++1.5   ``0001111111111100``
++2.5   ``0011111111111110``
++3.5   ``0111111111111111``
+====== ====================
 
-* output  3;   125/48x upsample L
-
-* output  4..13;   sigma-delta 0..9 L
-
-* output 14;   optional sigma-delta 10 R
-
-* output 15;   2x upsample R
-
-* output 16;   4x upsample R
-
-* output 17;   125/48x upsample R
-
-* output 18..27;   sigma-delta 0..9 R
-
-* output 28;   optional sigma-delta 10 R
-
-That has output 32 * 28 = 896 quanta and has produced 1000 or 1100 quanta,
-
-* output 29 up to (31 to 35) output quanta to empty buffer far enough
-
-So we'll have a FIFO that has a multiple of 25 words in it. It will be
-checked every 25th word whether it needs to wrap or not. The reader will
-run at least 35 words behind the writer, so a 75 word FIFO should do.
-
-==== ===== ====== ============================================
-Read WritL WritR  Stage
-==== ===== ====== ============================================
-0    36    36     output  0;   Get samples L & R
-1    36    36     output  1;   2x upsample L
-2    36    36     output  2;   4x upsample L
-3    36    36     output  3;   125/48x upsample L
-4..  36..  36     output  4..13;   sigma-delta 0..9 L
-14   67    36     output 14;   optional sigma-delta 10 R
-15   67    36     output 15;   2x upsample R
-16   67    36     output 16;   4x upsample R
-17   67    36     output 17;   125/48x upsample R
-18.. 67    36..   output 18..27;   sigma-delta 0..9 R
-28   67    67     output 28;   optional sigma-delta 10 R
-29   67    67     output 29
-30   67    67     output until 67-37 items
-31   67    67     output  0;   Get samples L & R
-32   67    67     output  1;   2x upsample L
-33   67    67     output  2;   4x upsample L
-==== ===== ====== ============================================
-
-Output data-structure
----------------------
-
-The output comprises a single array comprising 75 x (2+2) x 4 = 1200 bytes
-that stores port-identifiers and values for each of the two channels as
-follows (stereo only):
-
-  ===== ======= ======= ===== ===== ========== =========
-        0x00    0x04    0x08  0x0C  bits       Word
-  ===== ======= ======= ===== ===== ========== =========
-  0x000 prtid 0 prtid 1 val 0 val 1 0..31      0
-  0x010 prtid 0 prtid 1 val 0 val 1 32..63     1
-  0x020 prtid 0 prtid 1 val 0 val 1 64..95     2
-  0x030 prtid 0 prtid 1 val 0 val 1 95..127    3
-  ...
-  0x4A0 prtid 0 prtid 1 val 0 val 1 2368..2399 74
-  ===== ======= ======= ===== ===== ========== =========
-
-The array is single buffered. There is a write pointer that starts at 50, it
-is incremented in partial words, but every 25 words it is on a whole-word
-boundary; that is when it is checked for wrapping back to 0.
-
-The read pointer starts at word 50-36 = word 14.
+This means that we achieve a maximum level of 93.75% and a minimum level of
+6.25%; at -1.16 dB of full scale voltage swing.
