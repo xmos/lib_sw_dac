@@ -299,7 +299,7 @@ The default upsampler is
 
 * 384 kHz in, x2, 786 kHz out, 16 taps, 10.4 us latency
 
-* 786 kHz in, x125/64, 1500 kHz out, 2000 taps, 10.4 us latency
+* 786 kHz in, x125/64, 1500 kHz out, 1000 taps, 10.4 us latency
 
 With all filters symmetrical and a constant group delay.
 
@@ -624,64 +624,59 @@ Alternative designs could use:
 * Use minimum phase filters in order to reduce the latency of the DAC. This
   is simply a matter of changing the filter coefficients.
 
+* Use longer filters with improved roll-off at the cost of extra MIPS.
+
 Filters
 -------
 
 The 48 kHz family is upsampled as follows:
 
+.. _48000_family_filters:
+.. figure:: ../images/48000_family_filters.*
+   :height: 175mm
+
+   Individual filter responses. From top to bottom 48 to 96 kHz; 96 to 192 kHz; 192
+   to 384 kHz; 384 to 768 kHz; 768 kHz to 1.5 MHz.
+
 * An input signal of 48,000 Hz is upsampled by 2x using a filter with 80
-  taps. This produces a signal of 96,000 Hz. The filter response is shown
-  in :numref:`x2_0`.
-
-.. _x2_0:
-.. figure:: ../images/x2_0.*
-   :width: 90%
-
-   48,000 to 96,000 filter response
-
+  taps. This produces a signal of 96,000 Hz.
+  
 * An input signal of 96,000 Hz (or an upsampled signal of 48,000 Hz) is
   upsampled by 2x using a filter with 32 taps. This produces a signal of
-  192,000 Hz. The filter response is shown
-  in :numref:`x2_1`.
-
-.. _x2_1:
-.. figure:: ../images/x2_1.*
-   :width: 90%
-
-   96,000 to 192,000 filter response
+  192,000 Hz.
 
 * An input signal of 192,000 Hz (or an upsampled signal of 48,000/96,000
   Hz) is upsampled by 2x using a filter with 16 taps. This produces a
-  signal of 384,000 Hz. The filter response is shown
-  in :numref:`x2_2`.
-
-.. _x2_2:
-.. figure:: ../images/x2_2.*
-   :width: 90%
-
-   192,000 to 384,000 filter response
+  signal of 384,000 Hz.
 
 * Any input signal that has been upsampled to 384,000 Hz is upsampled by 2x
-  using a filter with 16 taps. This produces a signal of 768,000 Hz. The filter response is shown
-  in :numref:`x2_3`.
-
-.. _x2_3:
-.. figure:: ../images/x2_3.*
-   :width: 90%
-
-   384,000 to 768,000 filter response
+  using a filter with 16 taps. This produces a signal of 768,000 Hz.
 
 * Any input signal that has been upsampled to 768,000 Hz is upsampled by a
-  125x and downsampled by 64x using a filter with 2,000 taps. This produces
-  a signal of 1,500,000 Hz. The filter response is shown
-  in :numref:`x125_64`.
+  125x and downsampled by 64x using a filter with 1,000 taps. This produces
+  a signal of 1,500,000 Hz.
 
-.. _x125_64:
-.. figure:: ../images/x125_64.*
+.. _48000_family_responses:
+.. figure:: ../images/48000_family_responses.*
    :width: 90%
 
-   768,000 to 1,500,000 filter response
+   Combined filter response for 48, 96, and 192 kHz sample rates.
 
+The individual filter responses are shonw in :numref:`48000_family_filters`; the combined
+filter response is shown in :numref:`48000_family_responses`. 
+Combined, these filters have an impulse response as shown in
+:numref:`48000_family_impulses`. These images show the output
+of an impulse at time 0. The highlighted value in the middle indicates the
+peak of the impulse. The X axis is labelled in input samples.
+
+.. _48000_family_impulses:
+.. figure:: ../images/48000_family_impulses.*
+   :width: 90%
+
+   Impulse response for an impulse at 48, 96, and 192 kHz sample rate. Each
+   figure shows the delay that the filters introduce as measured in samples
+   at the input sample rate.
+   
 The 44.1 kHz family is upsampled as follows:
 
 * An input signal of 44,100 Hz is upsampled by 2x using a filter with 80
@@ -717,7 +712,7 @@ Gibbs ringing
 -------------
 
 This sequence of upsamplers will, like any upsampler, cause ringing on an
-impulse response. For example, a signal [-1, -1, -1, -1, -1, +1, +1, +1,
+step change. For example, a signal [-1, -1, -1, -1, -1, +1, +1, +1,
 +1, +1] will ring before and after the step change. Similarly, a signal
 [-1, -1, +1, +1, -1, -1] will convert to a sinewave with an amplitude of
 sqrt(2); well above full scale.
@@ -727,7 +722,7 @@ clip any ringing more than 1% above full scale; this to avoid instability
 in the modulator, and to give us maximum dynamic range for normal audio
 signals.
 
-A different configuration can make a different trade-off. For example, the
+A different configuration could change this trade-off. For example, the
 clipping can be set higher enabling the ringing to not be clipped at the
 expense of some dynamic range.
 
