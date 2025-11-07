@@ -189,9 +189,6 @@ def test_thread_performance_sf(request, sample_rate, burn):
                                                                               skip_loops,
                                                                               verbose=True)
 
-#    if sample_rate == 192000 and burn == 1:
-#        pytest.xfail("Skipping 192/burn. See https://github.com/xmos/lib_sigma_delta/issues/24")
-
     target_pwm_rate = 1.5e6
     assert math.isclose(pwm_output_rate, target_pwm_rate, rel_tol=0.001), f"PWM rate not achieved: {pwm_output_rate:.2f} ({target_pwm_rate})"
     
