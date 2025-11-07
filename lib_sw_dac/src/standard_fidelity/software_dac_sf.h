@@ -97,6 +97,12 @@ struct filter_x250_147_phases {
     int32_t *coeffs;
 };
 
+struct filter_x125_64_phases {
+    __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+    int n;
+};
+
 /**
  * Function that initialises a software DAC. It requires an array of two
  * ports (Left and Right, both 1-bit ports), and a clock block.
