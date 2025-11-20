@@ -19,17 +19,32 @@ FILE * _fopen(char * fname, char* mode) {
 #if FREQ == 48000
 extern int filter_x125_4(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_4
-#define mask 3
+#define highest_bank 4
 
 #elif FREQ == 96000
 extern int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_8
-#define mask 7
+#define highest_bank 8
 
 #elif FREQ == 192000
 extern int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
 #define filter_api filter_x125_16
-#define mask 15
+#define highest_bank 16
+
+#elif FREQ == 44100
+extern int filter_x5000_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+#define filter_api filter_x5000_147
+#define highest_bank 147
+
+#elif FREQ == 88200
+extern int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+#define filter_api filter_x2500_147
+#define highest_bank 147
+
+#elif FREQ == 176400
+extern int filter_x1250_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample);
+#define filter_api filter_x1250_147
+#define highest_bank 147
 
 #else
 #error "Unsupported frequency"
@@ -63,7 +78,10 @@ int main(void){
   for(unsigned i = 0; i < in_len; i++) {
     fread(&in_samp, sizeof(int32_t), 1, in);
     int n = filter_api(&sd, out_samp, 0, in_samp);
-    sd.bank = (sd.bank + 1) & mask;
+    sd.bank = (sd.bank + 1);
+    if (sd.bank == highest_bank) {
+      sd.bank = 0;
+    }
     fwrite(&out_samp, sizeof(int32_t), n, out);
   }
 

@@ -13,6 +13,7 @@ set(APP_DEPENDENT_MODULES 	"lib_sw_dac"
 set(APP_PCA_ENABLE 			ON)
 
 set(APP_COMPILER_FLAGS    	-O3
+                                -mcmodel=large
 							-g
 							-report)
 
