@@ -13,8 +13,8 @@ set(APP_PCA_ENABLE 			OFF)
 
 set(APP_COMPILER_FLAGS          -O3
                                 -mcmodel=large
-				-g
-				-report)
+                                -g
+                                -report)
 
 set(APP_INCLUDES    		src)
 

@@ -67,7 +67,7 @@ typedef struct {
     // Needs to be long enough to accommodate filter_x2_i4_o8_n16
     // which needs a 16 var long state buffer
     // previous filter will write to the [12..15] and overwrite [16..19] inclusive
-    // so needs to contain 20 elements
+    // so needs to contain 20 elements, rounded up to a whole number of vectors 24
     int32_t filter_stage2_out[CHANNELS][24];
     
     // Buffer to hold data of the filter3 pointer
@@ -91,11 +91,6 @@ typedef struct {
 
     int sigma_delta_state_array[CHANNELS][11];  // TODO: make this 10 (8 + (8-6))
 } sw_dac_sf_t;
-
-struct filter_x250_147_phases {
-    __attribute__(( fptrgroup("filter_x250_147") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
-    int32_t *coeffs;
-};
 
 /**
  * Function that initialises a software DAC. It requires an array of two
