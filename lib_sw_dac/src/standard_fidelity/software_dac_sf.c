@@ -323,12 +323,13 @@ int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
  *                         First stop band is 441,000 +/- 21,025 Hz: bins 8 +/- 1
  *                         Stop bands around 8, 16, 24, ...
  *
- * The generator is in
- *   ../../../host/sinc_44100.py
- *     Generates the filter coefficients
- *   ../../../host/generate_44100_assembly_and_tables.py
- *     Generates the phased filter (the .h files below) and assembly code (the associated .S files)
+ * The phased filter (the .h files below) and assembly code (the associated .S files) are auto generated 
  */
+
+struct filter_x250_147_phases {
+    __attribute__(( fptrgroup("filter_x250_147") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+};
 
 #include "filter_x250_147_i5_o8_n2000.h"
 #include "filter_x250_147_i10_o17_n2000.h"

@@ -5,7 +5,7 @@ lib_sw_dac: Software DAC
 ########################
 
 :vendor: XMOS
-:version: 0.1.0
+:version: 0.2.0
 :scope: Demo
 :description: Software DAC for xcore.ai
 :category: Audio
