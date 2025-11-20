@@ -6,7 +6,6 @@ lib_sw_dac change log
 
   * Added 44,100 family
 
-
 0.1.0
 -----
 
