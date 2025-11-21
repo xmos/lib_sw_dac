@@ -197,7 +197,7 @@ struct filter_x125_64_phases {
     int n;
 };
 
-struct filter_x250_147_phases filter_x125_64_i4_phases[16] = {
+struct filter_x125_64_phases filter_x125_64_i4_phases[16] = {
     {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 0][0][0]},
     {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 1][0][0]},
     {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 2][0][0]},
@@ -217,7 +217,7 @@ struct filter_x250_147_phases filter_x125_64_i4_phases[16] = {
 };
 
 static inline int filter_x125_64_i4_o8_n16_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
-    struct filter_x250_147_phases *f = &filter_x125_64_i4_phases[sd->bank];
+    struct filter_x125_64_phases *f = &filter_x125_64_i4_phases[sd->bank];
     int n = (*f->filter_function)(&output[0], samples, f->coeffs);
     filter_shuffle_n24_n20(samples); // shuffle down 4 place
     return n;
