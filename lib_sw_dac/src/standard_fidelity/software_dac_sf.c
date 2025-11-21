@@ -191,6 +191,12 @@ static inline int filter_x125_64_i8_o16_n16_phased(sw_dac_sf_t *sd, int32_t *out
     }
 }
 
+struct filter_x125_64_phases {
+    __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+    int n;
+};
+
 struct filter_x250_147_phases filter_x125_64_i4_phases[16] = {
     {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 0][0][0]},
     {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 1][0][0]},
@@ -324,12 +330,6 @@ int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
 struct filter_x250_147_phases {
     __attribute__(( fptrgroup("filter_x250_147") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
     int32_t *coeffs;
-};
-
-struct filter_x125_64_phases {
-    __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
-    int32_t *coeffs;
-    int n;
 };
 
 #include "filter_x250_147_i5_o8_n2000.h"
