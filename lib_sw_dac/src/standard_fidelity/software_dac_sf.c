@@ -191,35 +191,36 @@ static inline int filter_x125_64_i8_o16_n16_phased(sw_dac_sf_t *sd, int32_t *out
     }
 }
 
+struct filter_x125_64_phases {
+    __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+    int n;
+};
+
+struct filter_x125_64_phases filter_x125_64_i4_phases[16] = {
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 0][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 1][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 2][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 3][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 4][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_5         , &filter_banks_125_64_banks[ 5][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_6         , &filter_banks_125_64_banks[ 6][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_7b        , &filter_banks_125_64_banks[ 7][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 8][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 9][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_a         , &filter_banks_125_64_banks[10][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_7b        , &filter_banks_125_64_banks[11][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[12][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[13][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[14][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_f         , &filter_banks_125_64_banks[15][0][0]}
+};
+
 static inline int filter_x125_64_i4_o8_n16_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
-    int32_t *filter_bank = &filter_banks_125_64_banks[sd->bank][0][0];
-    switch(sd->bank) {
-    case 5:
-        filter_x125_64_i4_o8_n16_phase_5         (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 6:
-        filter_x125_64_i4_o8_n16_phase_67b       (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 11:
-    case 7:
-        filter_x125_64_i4_o8_n16_phase_67b       (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 7;
-    case 10:
-        filter_x125_64_i4_o8_n16_phase_a         (&output[0], samples, filter_bank); // 10
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 15:
-        filter_x125_64_i4_o8_n16_phase_f         (&output[0], samples, filter_bank); // 15
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 7;
-    default:
-        filter_x125_64_i4_o8_n16_phase_0123489cde(&output[0], samples, filter_bank);
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    }
+    struct filter_x125_64_phases *f = &filter_x125_64_i4_phases[sd->bank];
+    int n = (*f->filter_function)(&output[0], samples, f->coeffs);
+    filter_shuffle_n24_n20(samples); // shuffle down 4 place
+    return n;
 }
 
 #if SW_DAC_DC_REMOVAL_TIME_CONSTANT

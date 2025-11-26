@@ -50,11 +50,13 @@ void filter_x2_i4_o8_n16(int32_t *output, int32_t *input, int32_t *filter);
 // x2 8 -> 16 samples
 void filter_x2_i8_o16_n16(int32_t *output, int32_t *input, int32_t *filter);
 // poly x125/64 ~ x1.953 
-void filter_x125_64_i4_o8_n16_phase_0123489cde(int32_t *output, int32_t *input, int32_t *filter);
-void filter_x125_64_i4_o8_n16_phase_67b(int32_t *output, int32_t *input, int32_t *filter);
-void filter_x125_64_i4_o8_n16_phase_5(int32_t *output, int32_t *input, int32_t *filter);
-void filter_x125_64_i4_o8_n16_phase_a(int32_t *output, int32_t *input, int32_t *filter);
-void filter_x125_64_i4_o8_n16_phase_f(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_0123489cde(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_67b(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_6(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_7b(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_5(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_a(int32_t *output, int32_t *input, int32_t *filter);
+int filter_x125_64_i4_o8_n16_phase_f(int32_t *output, int32_t *input, int32_t *filter);
 // poly x5/2 8 -> 20 samples
 void filter_x5_2_i8_o20_n40(int32_t *output, int32_t *input, int32_t *filter);
 // poly x5/2 4 -> 10 samples
