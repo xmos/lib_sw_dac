@@ -86,8 +86,7 @@ typedef struct {
     int32_t *pre_distort_in[CHANNELS];
     int32_t *pre_distort_pwm_comp_history[CHANNELS];
     int32_t *pre_distort_flat_comp_history[CHANNELS];
-    int32_t scale1[8];
-    int32_t scale2[8];
+    int32_t scale[16];
     int32_t comp_px3_px2_fx2_fx3[32];
 
     int sigma_delta_state_array[CHANNELS][11];  // TODO: make this 10 (8 + (8-6))
