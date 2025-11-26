@@ -30,7 +30,6 @@ Known issues
 ************
 
 * Fixed configuration only currently (SF = Standard Fidelity)
-* 192kHz SD requires 85 MHz thread speed (max 7 threads at 600 MHz core clock)
 * The API requires that the software DAC is continually fed samples at the input
   sample rate. Failure to do so will result in full scale outputs glitches. Please
   ensure your application disables the hardware output stage before stopping
