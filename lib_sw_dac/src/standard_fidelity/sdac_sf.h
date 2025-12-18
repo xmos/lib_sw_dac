@@ -24,7 +24,8 @@
 // These are offsets to the array exchanged between
 // the filter thread the sigma-delta thread
 // Do not modify!
-#define SDAC_FILTER_MAX  42
+
+#define SDAC_FILTER_MAX  48
 #define SDAC_BUF_N       0
 #define SDAC_BUF_L       1
 #define SDAC_BUF_R       (SDAC_BUF_L + SDAC_FILTER_MAX)

@@ -156,7 +156,7 @@ def analyse_extracted_trace(events, app_thread_id, sd_0_thread_id, sd_1_thread_i
 
     return pcm_rate_hz, thread_1_pause_pc, pwm_output_rate
 
-@pytest.mark.parametrize("sample_rate", [48000, 96000, 192000])
+@pytest.mark.parametrize("sample_rate", [48000, 96000, 192000, 44100, 88200, 176400])
 @pytest.mark.parametrize("burn", [1, 0])
 def test_thread_performance_sf(request, sample_rate, burn):
     cwd = Path(request.fspath).parent
@@ -188,9 +188,6 @@ def test_thread_performance_sf(request, sample_rate, burn):
                                                                               sd_1_thread_id,
                                                                               skip_loops,
                                                                               verbose=True)
-
-    if sample_rate == 192000 and burn == 1:
-        pytest.xfail("Skipping 192/burn. See https://github.com/xmos/lib_sigma_delta/issues/24")
 
     target_pwm_rate = 1.5e6
     assert math.isclose(pwm_output_rate, target_pwm_rate, rel_tol=0.001), f"PWM rate not achieved: {pwm_output_rate:.2f} ({target_pwm_rate})"

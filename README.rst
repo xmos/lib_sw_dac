@@ -5,7 +5,7 @@ lib_sw_dac: Software DAC
 ########################
 
 :vendor: XMOS
-:version: 0.1.0
+:version: 0.2.0
 :scope: Demo
 :description: Software DAC for xcore.ai
 :category: Audio
@@ -30,7 +30,6 @@ Known issues
 ************
 
 * Fixed configuration only currently (SF = Standard Fidelity)
-* 192 kHz input requires 85 MHz thread speed (max 7 threads at 600 MHz core clock). 96 kHz and 48 kHz can support 8 used threads.
 
 ****************
 Development repo

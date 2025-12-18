@@ -55,8 +55,8 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
 
     // Init pre_distort components, all q30
     for(int i = 0; i < 8; i++) {   // TODO: the compiler probably hoists these constants.
-        sd->scale1[i] = 0x40000000 * scale / limit * 2;
-        sd->scale2[i] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
+        sd->scale[i] = 0x40000000 * scale / limit * 2;
+        sd->scale[i+8] = 0x40000000 * limit / 4 / 2 * negate;      // TODO: /4   depends on Q4.28
         sd->comp_px3_px2_fx2_fx3[i+8*0] = 0x40000000 * p_x3;
         sd->comp_px3_px2_fx2_fx3[i+8*1] = 0x40000000 * p_x2;
         sd->comp_px3_px2_fx2_fx3[i+8*2] = 0x40000000 * f_x2;
@@ -198,35 +198,36 @@ static inline int filter_x125_64_i8_o16_n16_phased(sw_dac_sf_t *sd, int32_t *out
     }
 }
 
+struct filter_x125_64_phases {
+    __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+    int n;
+};
+
+struct filter_x125_64_phases filter_x125_64_i4_phases[16] = {
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 0][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 1][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 2][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 3][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 4][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_5         , &filter_banks_125_64_banks[ 5][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_6         , &filter_banks_125_64_banks[ 6][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_7b        , &filter_banks_125_64_banks[ 7][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 8][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[ 9][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_a         , &filter_banks_125_64_banks[10][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_7b        , &filter_banks_125_64_banks[11][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[12][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[13][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_0123489cde, &filter_banks_125_64_banks[14][0][0]},
+    {filter_x125_64_i4_o8_n16_phase_f         , &filter_banks_125_64_banks[15][0][0]}
+};
+
 static inline int filter_x125_64_i4_o8_n16_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
-    int32_t *filter_bank = &filter_banks_125_64_banks[sd->bank][0][0];
-    switch(sd->bank) {
-    case 5:
-        filter_x125_64_i4_o8_n16_phase_5         (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 6:
-        filter_x125_64_i4_o8_n16_phase_67b       (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 11:
-    case 7:
-        filter_x125_64_i4_o8_n16_phase_67b       (&output[0], samples, filter_bank); // 5
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 7;
-    case 10:
-        filter_x125_64_i4_o8_n16_phase_a         (&output[0], samples, filter_bank); // 10
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    case 15:
-        filter_x125_64_i4_o8_n16_phase_f         (&output[0], samples, filter_bank); // 15
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 7;
-    default:
-        filter_x125_64_i4_o8_n16_phase_0123489cde(&output[0], samples, filter_bank);
-        filter_shuffle_n24_n20(samples); // shuffle down 4 place
-        return 8;
-    }
+    struct filter_x125_64_phases *f = &filter_x125_64_i4_phases[sd->bank];
+    int n = (*f->filter_function)(&output[0], samples, f->coeffs);
+    filter_shuffle_n24_n20(samples); // shuffle down 4 place
+    return n;
 }
 
 #if SW_DAC_DC_REMOVAL_TIME_CONSTANT
@@ -304,6 +305,117 @@ int filter_x125_16(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     return n;
 }
 
+
+/* 44100.
+ * upsample   to   352,800: 8x44,100; (2x 2x 2x); 4x88,200 (2x 2x); 2x176,400 (2x)
+ *                          Produces blocks of 8, 4, or 2
+ * upsample   to   882,000: (2.5x)
+ *                          Produces blocks of 20, 10, or 5
+ * upsample   to 1,500,000:
+ *                         Produces blocks of 34..35, 17..18, or 8..9
+ *                         This upsample has 147 phases
+ *
+ *                           735 input samples produces 1,250 output samples (blocks of 5 going in)
+ *                         1,470 input samples produces 2,500 output samples (blocks of 10 going in)
+ *                         2,940 input samples produces 5,000 output samples (blocks of 20 going in)
+ *
+ *                         Filter is designed for 220,500,000 Hz
+ *                               882,000 x 250 = 220,500,000
+ *                           220,500,000 / 147 =   1,500,000
+ *
+ *                         Intersperse each sample with 249 zeroes.
+ *                         Subsample 147 x
+ *                         2,000 taps requires 8 samples in the history buffer (8x250 = 2000)
+ *
+ *                         Nyquist frequency is 110,250,000 Hz, 55,125 Hz per bin
+ *                         First stop band is 441,000 +/- 21,025 Hz: bins 8 +/- 1
+ *                         Stop bands around 8, 16, 24, ...
+ *
+ * The phased filter (the .h files below) and assembly code (the associated .S files) are auto generated 
+ */
+
+struct filter_x250_147_phases {
+    __attribute__(( fptrgroup("filter_x250_147") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
+    int32_t *coeffs;
+};
+
+#include "filter_x250_147_i5_o8_n2000.h"
+#include "filter_x250_147_i10_o17_n2000.h"
+#include "filter_x250_147_i20_o34_n2000.h"
+
+// These will be inlined by the compiler - they call the appropriate function for a phase.
+// Cheaper than a switch
+// TODO: change the 48,000 family filters (x125_64) to use similar code.
+
+static inline int filter_x125_147_i20_o34_n2000_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
+    struct filter_x250_147_phases *fp = &filter_x250_147_i20_phases[sd->bank];
+    return (*fp->filter_function)(&output[0], samples, fp->coeffs);
+}
+
+static inline int filter_x125_147_i10_o17_n2000_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
+    struct filter_x250_147_phases *fp = &filter_x250_147_i10_phases[sd->bank];
+    return (*fp->filter_function)(&output[0], samples, fp->coeffs);
+}
+
+static inline int filter_x125_147_i5_o8_n2000_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
+    struct filter_x250_147_phases *fp = &filter_x250_147_i5_phases[sd->bank];
+    return (*fp->filter_function)(&output[0], samples, fp->coeffs);
+}
+
+// times 5000 divide by 147: 44,100 -> 1,500,000
+int filter_x5000_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+    sd->filter0[ch][39] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_48);
+    filter_x2_i1_o2_n80(&sd->filter1[ch][14], sd->filter0[ch], &filter_hashed_81_2[0][0][0]);
+    filter_x2_i2_o4_n32(&sd->filter2[ch][12], sd->filter1[ch], &filter_hashed_25_4[0][0][0]);      // 25_4 is incorrectly defined and duplicated
+    filter_x2_i4_o8_n16(&sd->filter3[ch][8], sd->filter2[ch], &filter_8x_coefficients[0][0]);
+
+    // Multiply by 5/2, to 882,000
+    // Input samples are in filter3[0..15]
+    // Output samples are in filter4[8..27]
+    filter_x5_2_i8_o20_n40(&sd->filter4[ch][8], sd->filter3[ch], &filter_x5_2_banks[0][0]);
+    
+    // Multiply by 125 and divide by 147 to 1,500,000
+    // Input samples are in filter4[0..27]
+    int n = filter_x125_147_i20_o34_n2000_phased(sd, output, &sd->filter4[ch][0]);
+    return n;
+}
+
+// times 2500 divide by 147: 88,200 -> 1,500,000
+int filter_x2500_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+    sd->filter0[ch][15] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_96);
+    // Input samples filter0[0..15], Two FIRs (even odd) on [0..15] produce two samples
+    // Output samples go into filter1[7..8], so that there are 9 samples in filter1
+    filter_x2_i1_o2_n32(&sd->filter1[ch][7], sd->filter0[ch], &filter_hashed_25_4__[0][0][0]);
+    // Input samples filter1[0..8], Two FIRs (even odd) on [0..7] produce two samples, two FIRs (even odd) on [1..8] produce two more samples
+    // Output samples go into filter2[7..10], so that there are 11 samples in filter2
+    filter_x2_i2_o4_n16(&sd->filter2[ch][7], sd->filter1[ch], &filter_8x_coefficients[0][0]);
+    // Multiply by 5/2, to 882,000
+    // Input samples are in filter2[0..15]
+    // Output samples are in filter3[8..17]
+    filter_x5_2_i4_o10_n40(&sd->filter3[ch][8], sd->filter2[ch], &filter_x5_2_banks[0][0]);    
+    // Multiply by 125 and divide by 147 to 1,500,000
+    // Input samples are in filter3[0..17]
+    int n = filter_x125_147_i10_o17_n2000_phased(sd, output, &sd->filter3[ch][0]);
+    return n;
+}
+
+// times 1250 divide by 147: 176,400 -> 1,500,000
+int filter_x1250_147(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
+    sd->filter0[ch][7] = dc_removal(sd, ch, sample, DC_REMOVAL_ALPHA_192);     // This is ok for 176,400
+    // Multiply by 2, to 352,800
+    // Input samples filter0[0..7], Two FIRs (even odd) on [0..7] produce two samples
+    // Output samples go into filter1[7..8], so that there are 9 samples in filter1
+    filter_x2_i1_o2_n16(&sd->filter1[ch][7], sd->filter0[ch], &filter_8x_coefficients__[0][0]);
+    // Multiply by 5/2, to 882,000
+    // Input samples are in filter1[0..15]
+    // Output samples are in filter2[8..12]
+    filter_x5_2_i2_o5_n40(&sd->filter2[ch][8], sd->filter1[ch], &filter_x5_2_banks[0][0]);  
+    // Multiply by 125 and divide by 147 to 1,500,000
+    // Input samples are in filter2[0..12]
+    int n = filter_x125_147_i5_o8_n2000_phased(sd, output, &sd->filter2[ch][0]);
+    return n;
+}
+
 void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     // setup the vpu for the filters and predistortion
     asm("ldc r11, 0\n vsetc r11");
@@ -319,50 +431,62 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
             if (chanend_test_control_token_next_byte(c_in)) {
                 chanend_check_control_token(c_in, XS1_CT_END);
                 sample_rate = chanend_in_word(c_in);
+                sd->bank = 0;  // This is safe for all filters.
             }
             int32_t dataL = chanend_in_word(c_in);
             dataL >>= FILTER_HEADROOM;
             int32_t dataR = chanend_in_word(c_in);
             dataR >>= FILTER_HEADROOM;
 
-            int n, mask;
+            int n, highest_bank;
             switch(sample_rate) {
             case 48000:
                 n = filter_x125_4(sd, sd->pre_distort_in[0], 0, dataL);
                 (void) filter_x125_4(sd, sd->pre_distort_in[1], 1, dataR);
-                mask = 3;
+                highest_bank = 4;
                 break;
             case 96000:
                 n = filter_x125_8(sd, sd->pre_distort_in[0], 0, dataL);
                 (void) filter_x125_8(sd, sd->pre_distort_in[1], 1, dataR);
-                mask = 7;
+                highest_bank = 8;
                 break;
             case 192000:
                 n = filter_x125_16(sd, sd->pre_distort_in[0], 0, dataL);
                 (void) filter_x125_16(sd, sd->pre_distort_in[1], 1, dataR);
-                mask = 15;
+                highest_bank = 16;
+                break;
+            case 44100:
+                n = filter_x5000_147(sd, sd->pre_distort_in[0], 0, dataL);
+                (void) filter_x5000_147(sd, sd->pre_distort_in[1], 1, dataR);
+                highest_bank = 147;
+                break;
+            case 88200:
+                n = filter_x2500_147(sd, sd->pre_distort_in[0], 0, dataL);
+                (void) filter_x2500_147(sd, sd->pre_distort_in[1], 1, dataR);
+                highest_bank = 147;
+                break;
+            case 176400:
+                n = filter_x1250_147(sd, sd->pre_distort_in[0], 0, dataL);
+                (void) filter_x1250_147(sd, sd->pre_distort_in[1], 1, dataR);
+                highest_bank = 147;
                 break;
             }
             int oindex = SDAC_BUF_L;
-            int n_vec = (n + 7) >> 3;
-            // TODO: make pre_distort and clip_and_scale N long, where N = 8, 16, 32.
+
             for(int c = 0; c < 2; c++) {
                 pre_distort(&data[i][oindex],
                             sd->pre_distort_in[c],
                             sd->pre_distort_pwm_comp_history[c],
                             sd->pre_distort_flat_comp_history[c],
                             sd->comp_px3_px2_fx2_fx3,
-                            n_vec,
-                            sd->scale1, sd->scale2);
-                // roll history
-                sd->pre_distort_in               [c][-1] = sd->pre_distort_in               [c][n-1];
-                sd->pre_distort_flat_comp_history[c][-1] = sd->pre_distort_flat_comp_history[c][n-1];
-                sd->pre_distort_pwm_comp_history [c][-1] = sd->pre_distort_pwm_comp_history [c][n-1];
-                sd->pre_distort_pwm_comp_history [c][-2] = sd->pre_distort_pwm_comp_history [c][n-2];
+                            n,
+                            sd->scale);
 
                 oindex = SDAC_BUF_R;
             }
-            sd->bank = (sd->bank + 1) & mask;
+            int new_bank = sd->bank + 1;
+            if (new_bank== highest_bank) new_bank = 0;
+            sd->bank = new_bank;
             data[i][SDAC_BUF_N] = n;
 
             chanend_out_word(c_out, (int) &data[i][0]);
