@@ -27,22 +27,18 @@
     .linkset FUNCTION_NAME.nstackwords, 0
     .align 16
 FUNCTION_NAME:
-    // Init VPU
-    ldc r11, 0
-    vsetc r11
-// setup select
-    ldap r11, .sd_timeout; //r11 <- &sd_timeout handler
-    ldw r6, sp[SDAC_STACK_TIMEOUT_RESID];
-    setv res[r6], r11;  //set event vector
+// Init VPU and the select statement
+    { ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]; ldc r11, 0  }
+    { vsetc r11                 ; ldap r11, .sd_timeout }
+
+    { setv res[r6], r11         ; ldap r11, .input_handler}
     eeu res[r6]; // enable
 
-    ldap r11, .input_handler; //r11 <- input_handler
     setv res[r0], r11;
-    eeu res[r0]; // enable EEBLE
-
-    setsr 0x01; // event enable in thread
+    eeu res[r0]; // enable
 
     waiteu; // This does the initial IN or timeout
+    
 // Main loop
 .Louter_loop:
 .input_handler:
