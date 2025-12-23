@@ -81,6 +81,10 @@ void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, in
 
         chanend_out_word(c_sd_in, (int) &data[idx][0]);
 
+        if(loop_count == 0){
+            sd->timeout_occurred = 0; // Ensure we start clean after startup
+        }
+
     }
     running = 0; // Stop consuming samples in consumer app
 

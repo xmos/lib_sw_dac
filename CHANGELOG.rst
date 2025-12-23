@@ -1,11 +1,13 @@
 lib_sw_dac change log
 =====================
 
-UNRELEASED
-----------
+1.0.0
+-----
 
-  * FIXED: Now sends PWM zero when not fed with samples
-  * ADDED: 44.1 , 88.2, 176.4 kHz support
+  * First public release
+  * ADDED: 44.1, 88.2, 176.4 kHz support
+  * FIXED: PWM outputs zero level when not fed with samples
+  * FIXED: PWM left and right outputs remain synchronised
 
 0.1.0
 -----

@@ -104,11 +104,6 @@ latency) as needed. The number of filters can be changed too, although for pragm
 reasons it is good to start with 2x upsamplers as that creates natural
 input points for 96 and 192 kHz sample rates if multiple input sample rate is required.
 
-In order to support the 44,100 family, one can either support:
-
-* A dual master clock configuration.
-* A fractional sample rate converter at the input stage.
-* A design the final filters to perform the fractional conversion at that stage.
 
 PWM pulse rate and levels
 -------------------------

@@ -5,24 +5,24 @@ lib_sw_dac: Software DAC
 ########################
 
 :vendor: XMOS
-:version: 0.2.0
-:scope: Demo
+:version: 1.0.0
+:scope: General Use
 :description: Software DAC for xcore.ai
 :category: Audio
-:keywords: Audio, DAC, PWM
+:keywords: DAC
 :devices: xcore.ai
 
 *******
 Summary
 *******
 
-Software DAC for xcore comprising of upsampling, sigma-delta modulator and PWM generation.
+Software DAC for ``xcore.ai`` comprising of upsampling, sigma-delta modulator and PWM generation.
 
 ********
 Features
 ********
 
-* Supports 48000, 96000 and 192000 Hz sample rate, stereo output
+* Supports 44100, 48000, 88200, 96000 and 176400 & 192000 Hz sample rate, stereo output
 * Uses two hardware threads, two one-bit ports, one timer, one clock-block and 32 kB of RAM
 
 ************

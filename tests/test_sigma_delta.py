@@ -46,7 +46,6 @@ def parse_output(stdout):
             max_pwm_magnitude = abs(idx) if abs(idx) > max_pwm_magnitude else max_pwm_magnitude 
     # handle case where we have even number of PWM entries - need offset due to no 0 word
     if len(pwm_lookup) % 2 == 0:
-        print("EVEN")
         for pwm_val in pwm_lookup.keys():
             pwm_lookup[pwm_val] = pwm_lookup[pwm_val] + 0.5
 
@@ -209,5 +208,8 @@ def test_sigma_delta(request, burn):
 
         wave_name = Path(f"logs/{test_name}_{sample_rate}_{burn}_{num_loops}.wav")
         wavfile.write(wave_name, sample_rate, np.int16(downsampled * max_pcm))
+
+        assert timedout == 0
+
         print()
 
