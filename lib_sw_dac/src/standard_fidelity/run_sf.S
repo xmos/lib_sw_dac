@@ -6,7 +6,7 @@
 
 #include "sdac_sf.h"
 
-#define NSTACKWORDS     18
+#define NSTACKWORDS     20
 #define FUNCTION_NAME sigma_delta_1_5
 
     .cc_top FUNCTION_NAME.function
@@ -39,6 +39,9 @@ FUNCTION_NAME:
     stw r4, sp[SDAC_STACK_TIMEOUT_RESID]
     ldw r4, r0[SDAC_TIMEOUT_WORD]
     stw r4, sp[SDAC_STACK_TIMEOUT_WORD]
+    ldw r4, r0[SDAC_CLOCK_BLOCK]
+    stw r4, sp[SDAC_STACK_TIMEOUT_CLKBLK]
+    
 
     // Initialise registers for sigma_delta_1_5
     ldw  r10, r0[SDAC_PWM_LOOKUP]

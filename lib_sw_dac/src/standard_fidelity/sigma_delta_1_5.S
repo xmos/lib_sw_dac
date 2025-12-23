@@ -38,7 +38,7 @@ FUNCTION_NAME:
 
     ldap r11, .input_handler; //r11 <- input_handler
     setv res[r0], r11;
-    eeu res[r0]; // enable
+    eeu res[r0]; // enable EEBLE
 
     setsr 0x01; // event enable in thread
 
@@ -111,16 +111,26 @@ FUNCTION_NAME:
     .align 8
 .sd_timeout:
     // Get the out dummy word, output it and then invert it to avoid DC output content
-    ldw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+    ldw r11, sp[SDAC_STACK_TIMEOUT_WORD]
+    ldw r6, sp[SDAC_STACK_TIMEOUT_CLKBLK]
 #if SW_DAC_SD_TEST_MODE
     out res[r7], r11
     out res[r8], r11
 #else
-    outpw res[r7], r11, 16;
-    outpw res[r8], r11, 16;
+    // Note this isn't perfect - the port buffer will empty before next timeout
+    // However since this is a bad situation anyway (output should have been muted if expected)
+    // and the timeout word is inverted so we will have continuous activity on the port and near 50% duty
+    // so it will avert issues where the SD is not fed which result in toasting the amplified
+    syncr res[r7]                            // Ensure we have space in port buffers 
+    syncr res[r8]
+    setc res[r6], XS1_SETC_RUN_STOPR         // Stop clock so we can pre-load both ports
+    out res[r7], r11
+    out res[r8], r11
+    setc res[r6], XS1_SETC_RUN_STARTR        // Start the clock outputs will be sync'ed until empty
 #endif
     not r11, r11;
     stw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+
 
     // Move the timeout timer on by at least one PWM period. We may come back here if no IN from filter
     { gettime r11               ; ldw r6, sp[SDAC_STACK_TIMEOUT_PERIOD]}

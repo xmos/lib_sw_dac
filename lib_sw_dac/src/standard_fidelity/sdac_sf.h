@@ -32,9 +32,10 @@
 #define SDAC_BUF_STEP    1
 #define SDAC_BUF_TOTAL   (SDAC_BUF_R + SDAC_FILTER_MAX)
 
-// These are stack offsets for storing information for the select in SD
+// These are stack offsets for storing information for the select and timeout in SD
 // DO NOT MODIFY!
 #define SDAC_STACK_SD_STRUCT_BASE   8
 #define SDAC_STACK_TIMEOUT_PERIOD   9
 #define SDAC_STACK_TIMEOUT_WORD     10
 #define SDAC_STACK_TIMEOUT_RESID    11
+#define SDAC_STACK_TIMEOUT_CLKBLK   12
