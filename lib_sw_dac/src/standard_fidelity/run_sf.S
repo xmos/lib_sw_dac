@@ -49,9 +49,10 @@ FUNCTION_NAME:
     ldw  r7, r0[SDAC_OUT_PORTS_L]
     ldw  r8, r0[SDAC_OUT_PORTS_R]
     
-    // Fill the ports with data
-    out res[r7], r7
-    out res[r8], r7
+    // Fill the ports with data, but clock not started yet
+    ldw r11, r0[SDAC_TIMEOUT_WORD]
+    out res[r7], r11
+    out res[r8], r11
 
     // Now start the clock block, it is on already and linked to the ports
     ldw r11, r0[SDAC_CLOCK_BLOCK]

@@ -74,7 +74,7 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
     out res[r7], r1
 #else
     outpw res[r7], r1, 16
@@ -98,7 +98,7 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
     out res[r8], r1
 #else
     outpw res[r8], r1, 16
@@ -112,7 +112,7 @@ FUNCTION_NAME:
 .sd_timeout:
     // Get the out dummy word, output it and then invert it to avoid DC output content
     ldw r11, sp[SDAC_STACK_TIMEOUT_WORD];
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
     out res[r7], r11
     out res[r8], r11
 #else

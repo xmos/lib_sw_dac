@@ -40,11 +40,11 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
                     float p_x2, float p_x3)
 {
     memset(sd, 0, sizeof(*sd));
-#if !defined(SW_DAC_SD_TEST_MODE)
+#if !SW_DAC_SD_TEST_MODE
     init_ports(dac_ports, clk);
 #endif
     sd->timeout_period = 70;    // at 1.5MHz this will be 66.666 so set slightly above
-    sd->timeout_word = 0x0ff0;  // 50% duty cycle 16b word
+    sd->timeout_word = 0x0ff00ff0;  // 50% duty cycle 16b word normally but full 32b version here for startup
     sd->timeout_resid = hwtimer_alloc();
     sd->timeout_occurred = 0;
 
@@ -106,7 +106,7 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (1 << (2*pwm_max)) | (mask << (1 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
             printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
 #endif
         }
@@ -118,7 +118,7 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (3 << (2*pwm_max)) | (mask << (2 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
             printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
 #endif
         }
