@@ -17,7 +17,7 @@ from scipy.signal import firwin, freqz, lfilter # Brickwall filter
 max_pcm = 32767
 pwm_rate = 1500000
 filter_cutoff = 48000
-pwm_idle_words = [0x0ff0, 0xfffffffffffff00f]
+pwm_idle_words = [0x0ff0, 0xfffffffffffff00f, 0xfffffffff00ff00f, 0x0ff00ff0]
 
 def parse_output(stdout):
     pwm_lookup = {}
@@ -44,6 +44,11 @@ def parse_output(stdout):
             hexval = int(m_pwm.group(2), 16)
             pwm_lookup[hexval] = idx
             max_pwm_magnitude = abs(idx) if abs(idx) > max_pwm_magnitude else max_pwm_magnitude 
+    # handle case where we have even number of PWM entries - need offset due to no 0 word
+    if len(pwm_lookup) % 2 == 0:
+        print("EVEN")
+        for pwm_val in pwm_lookup.keys():
+            pwm_lookup[pwm_val] = pwm_lookup[pwm_val] + 0.5
 
     # Add idle words
     for pwd_idle_word in pwm_idle_words:
@@ -81,7 +86,7 @@ def parse_xscope(filepath, pwm_lookup):
             pairs.append((left, right))
             sample_num += 1
 
-    return np.array(pairs, dtype=np.int32)
+    return np.array(pairs, dtype=np.float64)
 
 
 def check_hw_presence():
@@ -123,8 +128,9 @@ The test automatically detects if there is an available target or not and uses x
 def test_sigma_delta(request, burn):
     test_name = "test_sigma_delta"
 
+    build = "CHAN"
     cwd = Path(request.fspath).parent
-    binary = Path(f'{cwd}/{test_name}/bin/{test_name}.xe')
+    binary = Path(f'{cwd}/{test_name}/bin/{build}/{test_name}_{build}.xe')
     assert Path(binary).exists(), f"Cannot find {binary}"
     tmp_binary = Path(f'{cwd}/{test_name}/bin/{test_name}_{burn}.xe') # Needed for xdist
     create_if_needed("logs")
@@ -183,7 +189,11 @@ def test_sigma_delta(request, burn):
             # filtered = sosfilt(sos, one_channel) # like xms0021 HW - second order linear-phase-ish
             filtered = lfilter(brickwall, 1.0, one_channel) # brickwall
 
-            skip = 40 # There is a delay on the filter so skip the first few
+            if using_simuator:
+                skip = 40
+            else:
+                skip = int(0.001 * pwm_rate) # There is a delay on the filter so skip the first millisecond
+
             THDN, freq = THDN_and_freq(filtered[skip:], pwm_rate)
             print(f"Filtered channel {channel} THDN: {THDN} freq: {freq}")
             downsampled = resample_poly(filtered, up=up, down=down, axis=0)

@@ -52,7 +52,7 @@ def test_sigma_delta_idle(request, burn):
     test_name = "test_sigma_delta_idle" # But rename it so we don't clash with other tests using xdist
 
     cwd = Path(request.fspath).parent
-    binary = Path(f'{cwd}/{dut_test_name}/bin/{dut_test_name}.xe')
+    binary = Path(f'{cwd}/{dut_test_name}/bin/CHAN/{dut_test_name}_CHAN.xe')
     assert Path(binary).exists(), f"Cannot find {binary}"
     tmp_binary = Path(f'{cwd}/{dut_test_name}/bin/{test_name}_{burn}.xe') # Needed for xdist
     create_if_needed("logs")
@@ -114,9 +114,9 @@ def test_sigma_delta_idle(request, burn):
         sections = [[0, int(len_samples*0.333)],
                     [int(len_samples*0.4), int(len_samples*0.6)],
                     [int(len_samples*0.666), len_samples]]
-        expected = [[0.34, -0.12, 1000], # RMS, Mean, freq
+        expected = [[0.32, 0.0, 1000], # RMS, Mean, freq
                     [0.0, 0.0, None],
-                    [0.34, -0.12, 1000]]
+                    [0.32, 0.0, 1000]]
 
         for section, expected in zip(sections, expected):
             start, end = section
@@ -125,8 +125,8 @@ def test_sigma_delta_idle(request, burn):
             print(f"section {section_num} {section}, rms: {rms:.2f} ({exp_rms:.2f}), mean: {mean:.2f} ({exp_mean:.2f}), freq: {freq:.2f} ({exp_freq})")
             
             # Note because of short run, we have to be quite lax on RTOL
-            assert np.isclose(exp_rms, rms, rtol = 0.1), f"Expected RMS: {exp_rms} Actual RMS: {rms} - see {wave_name}"
-            assert np.isclose(exp_mean, mean, rtol = 0.1), f"Expected RMS: {exp_mean} Actual RMS: {mean} - see {wave_name}"
+            assert np.isclose(exp_rms, rms, atol = 0.01), f"Expected RMS: {exp_rms} Actual RMS: {rms} - see {wave_name}"
+            assert np.isclose(exp_mean, mean, atol = 0.01), f"Expected RMS: {exp_mean} Actual RMS: {mean} - see {wave_name}"
             if exp_freq is not None:
                 assert np.isclose(exp_freq, freq, rtol = 0.05), f"Expected RMS: {exp_freq} Actual RMS: {freq} - see {wave_name}"
 
