@@ -10,6 +10,7 @@
 #include "sw_dac.h"
 
 
+// Producer runs at full speed in this test so is throttled by downstream
 DECLARE_JOB(test_app, (chanend_t, int, int, int));
 void test_app(chanend_t c_sd, int sample_rate, int burn, int n_loops) {
     if(burn){
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
                     1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                     3.0/157, 0.63/157);        // pwm comp x2, x3
 
-    printf("Started test app sr: %d, loops: %d, burn: %d\n", sample_rate, burn, n_loops);
+    printf("Started test app sr: %d, burn: %d, loops: %d\n", sample_rate, burn, n_loops);
 
     if(burn){
     PAR_JOBS(

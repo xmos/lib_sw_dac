@@ -194,7 +194,6 @@ static inline int filter_x125_64_i8_o16_n16_phased(sw_dac_sf_t *sd, int32_t *out
 struct filter_x125_64_phases {
     __attribute__(( fptrgroup("filter_x125_64") )) int(*filter_function)(int32_t *, int32_t *, int32_t *);
     int32_t *coeffs;
-    int n;
 };
 
 struct filter_x125_64_phases filter_x125_64_i4_phases[16] = {
