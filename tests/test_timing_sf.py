@@ -11,8 +11,8 @@ from helpers import create_if_needed
 import math
 
 cpu_clock_hz = 600e6
-sd_clock_hz = 25e6 # set to ref / 4 in fw test app
-clock_factor = sd_clock_hz / 24e6 # Because we are not testing at the 24MHz design spec in the sim
+sd_clock_hz = 24e6 # we now use a 24MHz clock gen
+clock_factor = sd_clock_hz / 24e6 # Hangover from when clk was not exactly 24MHz
 num_channels = 2
 trim_pcm_samples = 2 # We get weird effects at the end so trim some
 
@@ -103,6 +103,7 @@ def analyse_extracted_trace(events, app_thread_id, sd_0_thread_id, sd_1_thread_i
         
         # print(thread, instr, time, paused)
 
+        # App threads runs faster than downstream
         if thread == app_thread_id and any(k in instr for k in thread_events[0]) and not paused: # PCM out instruction from test_app
             sample_count += 1
             if sample_count % num_channels == 0:
@@ -117,6 +118,7 @@ def analyse_extracted_trace(events, app_thread_id, sd_0_thread_id, sd_1_thread_i
                     if verbose: print("SKIPPED")
                 last_pcm_out_time = pcm_out_time
         
+        # sd0 (filter) should be blocked on OUT to sd1
         if thread == sd_0_thread_id and any(k in instr for k in thread_events[1]):
             if paused:
                 if verbose: print(f"Thread sd_0 paused at addr: {hex(addr)} at time: {time}")
@@ -156,17 +158,17 @@ def analyse_extracted_trace(events, app_thread_id, sd_0_thread_id, sd_1_thread_i
     pwm_output_rate = sd_1_ave_pwm_frames * pcm_rate_hz
 
     print("**Analysis complete**")
-    print(f"App PCM rate average over {len(app_thread_loop_times)} loops: {pcm_rate_hz}")
+    print(f"App PCM rate average over {len(app_thread_loop_times)} loops: {pcm_rate_hz:.2f}Hz")
     # print(app_thread_loop_times)
     print(f"sd_0 average pause time: {sd_0_pause_pc:.2f}%")
-    print(f"sd_1 PWM average frames per PCM sample: {sd_1_ave_pwm_frames}")
+    print(f"sd_1 PWM average frames per PCM sample: {sd_1_ave_pwm_frames:.2f}")
     print(f"sd_1 PWM output rate: {pwm_output_rate:.2f}Hz ({target_pwm_rate:.2f}Hz)")
     print("\n")
 
     return pcm_rate_hz, sd_0_pause_pc, pwm_output_rate
 
 @pytest.mark.parametrize("sample_rate", [44100, 48000, 88200, 96000, 176400, 192000])
-@pytest.mark.parametrize("burn", [1, 0])
+@pytest.mark.parametrize("burn", [0, 1])
 def test_thread_performance_sf(request, sample_rate, burn):
     cwd = Path(request.fspath).parent
     test_name = "timing_test_sf"
@@ -192,7 +194,7 @@ def test_thread_performance_sf(request, sample_rate, burn):
     target_pwm_rate = 1.5e6
 
     events, app_thread_id, sd_0_thread_id, sd_1_thread_id = extract_from_trace(trace_file)
-    print(f"IDs app: {app_thread_id}, sd0: {sd_0_thread_id}, sd1: {sd_1_thread_id}")
+    print(f"IDs app:{app_thread_id}, sd0:{sd_0_thread_id}, sd1:{sd_1_thread_id}")
     pcm_rate_hz, sd_0_pause_pc, pwm_output_rate = analyse_extracted_trace(events,
                                                                               app_thread_id,
                                                                               sd_0_thread_id,
@@ -202,6 +204,9 @@ def test_thread_performance_sf(request, sample_rate, burn):
                                                                               verbose=False)
 
     assert math.isclose(pwm_output_rate, target_pwm_rate, rel_tol=0.001), f"PWM rate not achieved: {pwm_output_rate:.2f} ({target_pwm_rate})"
+    assert math.isclose(pcm_rate_hz, sample_rate, rel_tol=0.001), f"PCM rate not achieved: {pcm_rate_hz:.2f} ({sample_rate})"
+    min_pause_pc = 5.0 # Generous min pause percentage
+    assert sd_0_pause_pc > min_pause_pc, f"Filter pause %age not achieved: {sd_0_pause_pc:.2f} ({min_pause_pc})"
     
     
 
