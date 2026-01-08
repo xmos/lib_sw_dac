@@ -42,8 +42,10 @@ FUNCTION_NAME:
     ldw  r8, r0[SDAC_OUT_PORTS_R]
     
     // Fill the ports with data
-    out res[r7], r7
-    out res[r8], r7
+    ldap r11, idle_word
+    ldw r11, r11[0]
+    out res[r7], r11
+    out res[r8], r11
 
     // Now start the clock block, it is on already and linked to the ports
     ldw r11, r0[SDAC_CLOCK_BLOCK]
@@ -63,3 +65,6 @@ FUNCTION_NAME:
     retsp NSTACKWORDS
     
     .cc_bottom FUNCTION_NAME.function
+
+idle_word:
+    .word 0x0ff00ff00 // 50% duty x2 16b words
