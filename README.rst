@@ -9,7 +9,7 @@ lib_sw_dac: Software DAC
 :scope: Demo
 :description: Software DAC for xcore.ai
 :category: Audio
-:keywords: Audio, DAC, PWM
+:keywords: DAC, DSP
 :devices: xcore.ai
 
 *******
