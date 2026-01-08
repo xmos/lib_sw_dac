@@ -279,8 +279,8 @@ int filter_x125_8(sw_dac_sf_t *sd, int32_t *output, int ch, int32_t sample) {
     // Output samples go into filter2[7..10], so that there are 11 samples in filter2
     filter_x2_i2_o4_n16(&sd->filter2[ch][7], sd->filter1[ch], &filter_8x_coefficients[0][0]);
     // Input samples filter2[0..10], Two FIRs (even odd) on [0..7], [1..8], [2..9], [3..10] produce four samples each
-    // Output samples go into filter3[12..15], so that there are 16 samples in filter3
-    filter_x2_i4_o8_n16(&sd->filter3[ch][12], sd->filter2[ch], &filter_16x_coefficients[0][0]);
+    // Output samples go into filter3[8..15], so that there are 16 samples in filter3
+    filter_x2_i4_o8_n16(&sd->filter3[ch][8], sd->filter2[ch], &filter_16x_coefficients[0][0]);
     return filter_x125_64_i8_o16_n16_phased(sd, output, &sd->filter3[ch][0]);
 }
 
