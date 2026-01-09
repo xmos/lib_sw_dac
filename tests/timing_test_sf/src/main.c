@@ -1,4 +1,4 @@
-// Copyright 2025 XMOS LIMITED.
+// Copyright 2025-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <xcore/port.h>
 #include <xcore/channel.h>
@@ -35,6 +35,10 @@ void burn(void){
 
 
 int main(int argc, char *argv[]) {
+    if(argc != 4){
+        printf("Error - need to pass <sample_rate>, <burn> and <n_loops> as args\n");
+        _Exit(-1);
+    }
     int sample_rate = atoi(argv[1]);
     int burn = atoi(argv[2]);
     int n_loops = atoi(argv[3]);

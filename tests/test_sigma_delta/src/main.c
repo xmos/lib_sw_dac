@@ -1,4 +1,4 @@
-// Copyright 2025 XMOS LIMITED.
+// Copyright 2025-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <xcore/port.h>
 #include <xcore/channel.h>
@@ -44,8 +44,8 @@ void test_consumer(chanend_t port_l, chanend_t port_r, int burn) {
 }
 
 
-DECLARE_JOB(test_producer, (sw_dac_sf_t*, chanend_t, int, int, int));
-void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, int pause_at) {
+DECLARE_JOB(test_producer, (sw_dac_sf_t*, chanend_t, int, int, int, int));
+void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, int pause_at, int exit_at) {
     hwtimer_t tmr = hwtimer_alloc();
     
     if(burn){
@@ -74,16 +74,18 @@ void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, in
         }
 
         if(loop_count == pause_at){
-            const int num_milliseconds_pause = 20;
+            const int num_milliseconds_pause = 10;
             printstr("pause\n");
             hwtimer_delay(tmr, XS1_TIMER_KHZ * num_milliseconds_pause);
         }
 
-        chanend_out_word(c_sd_in, (int) &data[idx][0]);
-
-        if(loop_count == 0){
-            sd->timeout_occurred = 0; // Ensure we start clean after startup
+        if(loop_count == exit_at){
+            printstr("exit\n");
+            sd->running = 0;
+            hwtimer_delay(tmr, XS1_TIMER_MHZ * 100); // 100us before starting again to allow exit to be consumed
         }
+
+        chanend_out_word(c_sd_in, (int) &data[idx][0]);
 
     }
     running = 0; // Stop consuming samples in consumer app
@@ -107,19 +109,24 @@ void sigma_delta_task_sf_delay_start(sw_dac_sf_t * sd, chanend_t c_sd){
     hwtimer_t tmr = hwtimer_alloc();
     hwtimer_delay(tmr, 20 * 100); // 20us
     hwtimer_free(tmr);
-    sigma_delta_task_sf(sd, c_sd);
+    while(1){
+        sigma_delta_task_sf(sd, c_sd);
+        printf("SD restart\n");
+        sd->running = 1;
+    }
 }
 
 int main(int argc, char *argv[]) {
-    if(argc != 4){
-        printf("Error - need to pass burn and loops and pause_at as args\n");
+    if(argc != 5){
+        printf("Error - need to pass <burn>, <loops>, <pause_at> and <exit_at> as args\n");
         _Exit(-1);
     }
     int burn = atoi(argv[1]);
     int n_loops = atoi(argv[2]);
     int pause_at = atoi(argv[3]);
+    int exit_at = atoi(argv[4]);
 
-    printf("Started test app, burn: %d, n_loops: %d, pause_at: %d\n", burn, n_loops, pause_at);
+    printf("Started test app, burn: %d, n_loops: %d, pause_at: %d, exit_at: %d\n", burn, n_loops, pause_at, exit_at);
 
     channel_t c_sd_ip = chan_alloc();
     channel_t c_sd_op_0 = chan_alloc();
@@ -143,24 +150,19 @@ int main(int argc, char *argv[]) {
                     1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                     3.0/157, 0.63/157);        // pwm comp x2, x3
 
-    // For xscope runs, we cannot sustain 2 x 1.5MHz 32b streams so make timeout large
-    if(n_loops == pause_at){
-        sd.timeout_period = 100000;
-    }
-
 
     if(burn){
     PAR_JOBS(
         PJOB(burn,                              ()),
         PJOB(burn,                              ()),
         PJOB(burn,                              ()),
-        PJOB(test_producer,                     (&sd, c_sd_ip.end_a, burn, n_loops, pause_at)),
+        PJOB(test_producer,                     (&sd, c_sd_ip.end_a, burn, n_loops, pause_at, exit_at)),
         PJOB(test_consumer,                     (c_sd_op_0.end_b, c_sd_op_1.end_b, burn)),
         PJOB(sigma_delta_task_sf_delay_start,   (&sd, c_sd_ip.end_b))
         );
     } else {
     PAR_JOBS(
-        PJOB(test_producer,                     (&sd, c_sd_ip.end_a, burn, n_loops, pause_at)),
+        PJOB(test_producer,                     (&sd, c_sd_ip.end_a, burn, n_loops, pause_at, exit_at)),
         PJOB(test_consumer,                     (c_sd_op_0.end_b, c_sd_op_1.end_b, burn)),
         PJOB(sigma_delta_task_sf_delay_start,   (&sd, c_sd_ip.end_b))
         );

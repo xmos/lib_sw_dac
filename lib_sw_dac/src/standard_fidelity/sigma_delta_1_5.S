@@ -1,4 +1,4 @@
-// Copyright 2024-2025 XMOS LIMITED.
+// Copyright 2024-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <xs1.h>
 #include "sdac_sf.h"
@@ -29,9 +29,9 @@
 FUNCTION_NAME:
 // Init VPU and the select statement
     { ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]; ldc r11, 0  }
-    { vsetc r11                 ; ldap r11, .sd_timeout }
+    { vsetc r11                 ; ldap r11, .Lsd_timeout }
 
-    { setv res[r6], r11         ; ldap r11, .input_handler}
+    { setv res[r6], r11         ; ldap r11, .Linput_handler}
     eeu res[r6]; // enable
 
     setv res[r0], r11;
@@ -41,7 +41,7 @@ FUNCTION_NAME:
     
 // Main loop
 .Louter_loop:
-.input_handler:
+.Linput_handler:
     // This section inits the DP, loads nsamp and moves on the timeout timer according to nsamp
     // We have r11, r6 and also r1 is available in this stage until the inner loop
     { in r11, res[r0]           ; ldw r1, sp[SDAC_STACK_TIMEOUT_PERIOD]}    // Grab input data pointer from filter + load timeout time period
@@ -105,7 +105,7 @@ FUNCTION_NAME:
 
     // Select handler for timeout. This does not need to speed optimised
     .align 8
-.sd_timeout:
+.Lsd_timeout:
     // Get the out dummy word, output it and then invert it to avoid DC output content
     ldw r11, sp[SDAC_STACK_TIMEOUT_WORD]
     ldw r6, sp[SDAC_STACK_TIMEOUT_CLKBLK]
@@ -116,7 +116,7 @@ FUNCTION_NAME:
     // Note this isn't perfect - the port buffer will empty before next timeout
     // However since this is a bad situation anyway (output should have been muted if expected)
     // and the timeout word is inverted so we will have continuous activity on the port and near 50% duty
-    // so it will avert issues where the SD is not fed which result in toasting the amplified
+    // so it will avert issues where the SD is not fed which result in toasting the amplifier
     syncr res[r7]                            // Ensure we have space in port buffers 
     syncr res[r8]
     setc res[r6], XS1_SETC_RUN_STOPR         // Stop clock so we can pre-load both ports
@@ -133,10 +133,18 @@ FUNCTION_NAME:
     { add r11, r11, r6          ; ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]}
     { setd res[r6], r11         ; ldc r11, 0x1;} // Move time trigger forwards and load timeout flag
     
-    // Set timeout occurred flag in struct
-    ldw r6, sp[SDAC_STACK_SD_STRUCT_BASE]   ;
-    {stw r11, r6[SDAC_TIMEOUT_OCCURED]      ; waiteu}
+    // Access struct ptr and set new timeout + check to see if running
+    ldw r6, sp[SDAC_STACK_SD_STRUCT_BASE]
+    stw r11, r6[SDAC_TIMEOUT_OCCURED]
+    ldw r11, r6[SDAC_RUNNING]
+    bf r11, .Lsd_exit
+    waiteu
 
+.Lsd_exit:
+    // Disable events on channel and timer
+    { edu res[r0] ; ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]}
+    edu res[r6]
+    retsp 0 // Return. Note at this point we may still have data tokens in channel so need to drain in C
 
     .align 4
 

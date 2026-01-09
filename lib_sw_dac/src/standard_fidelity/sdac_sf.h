@@ -1,4 +1,4 @@
-// Copyright 2025 XMOS LIMITED.
+// Copyright 2025-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 
 // These are offsets to the sw_dac_sf_t struct
@@ -20,6 +20,7 @@
 #define SDAC_TIMEOUT_WORD     8   // Used for safe timeout in SD/PWM
 #define SDAC_TIMEOUT_RESID    9   // Used for safe timeout in SD/PWM
 #define SDAC_TIMEOUT_OCCURED  10  // Used for safe timeout in SD/PWM
+#define SDAC_RUNNING          11  // Indicates if the DAC is running
 
 // These are offsets to the array exchanged between
 // the filter thread the sigma-delta thread
@@ -33,6 +34,7 @@
 #define SDAC_BUF_TOTAL   (SDAC_BUF_R + SDAC_FILTER_MAX)
 
 // These are stack offsets for storing information for the select and timeout in SD
+// The are copied to the stack in run_sf.S so that the assembly code can access them faster
 // DO NOT MODIFY!
 #define SDAC_STACK_SD_STRUCT_BASE   8
 #define SDAC_STACK_TIMEOUT_PERIOD   9

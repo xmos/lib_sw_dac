@@ -1,4 +1,4 @@
-// Copyright 2025 XMOS LIMITED.
+// Copyright 2025-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <xs1.h>
 #include <stdint.h>
@@ -36,6 +36,7 @@ typedef struct {
     int timeout_word;
     hwtimer_t timeout_resid;
     int timeout_occurred;
+    int running;    // Used for exiting the DAC cleanly
 
     // Upsampling filters
     int32_t *filter0[CHANNELS];

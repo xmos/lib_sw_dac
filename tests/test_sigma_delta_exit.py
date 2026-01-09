@@ -47,9 +47,9 @@ We check the output against RMS, freq and mean (DC level)
 """
 @pytest.mark.parametrize("burn", [0, 1])
 @pytest.mark.timeout(60 * 6)
-def test_sigma_delta_idle(request, burn):
+def test_sigma_delta_exit(request, burn):
     dut_test_name = "test_sigma_delta" # Re-use same DUT app
-    test_name = "test_sigma_delta_idle" # But rename it so we don't clash with other tests using xdist
+    test_name = "test_sigma_delta_exit" # But rename it so we don't clash with other tests using xdist
 
     cwd = Path(request.fspath).parent
     binary = Path(f'{cwd}/{dut_test_name}/bin/CHAN/{dut_test_name}_CHAN.xe')
@@ -62,9 +62,9 @@ def test_sigma_delta_idle(request, burn):
 
     # About 2min on xsim
     num_loops = 10000
-    pause_at = num_loops // 2
+    exit_at = num_loops // 2
     xscope_file = Path(f"logs/{test_name}_trace_{burn}_{num_loops}.vcd")
-    run_output = run_on_sim(tmp_binary, xscope_file, burn, num_loops, pause_at, num_loops)
+    run_output = run_on_sim(tmp_binary, xscope_file, burn, num_loops, num_loops, exit_at)
 
     tmp_binary.unlink() # delete
 
@@ -111,12 +111,10 @@ def test_sigma_delta_idle(request, burn):
 
         section_num = 1
         # These are tuned by looking at the output wav and measuring the signal, silence, signal sections
-        sections = [[0, int(len_samples*0.40)],
-                    [int(len_samples*0.45), int(len_samples*0.55)], # 10 ms idle section
-                    [int(len_samples*0.60), len_samples]]
+        sections = [[0, int(len_samples*0.5)],
+                    [int(len_samples*0.55), len_samples]]
         expected = [[0.32, 0.0, 1000], # RMS, Mean, freq
-                    [0.0, 0.0, None],
-                    [0.32, 0.0, 1000]]
+                    [0.32, 0.0, 1000]] # The second section should have recovered, else will be DC
 
         for section, expected in zip(sections, expected):
             start, end = section
@@ -133,6 +131,7 @@ def test_sigma_delta_idle(request, burn):
             section_num += 1
 
     assert timedout == 1
+
 
 
 

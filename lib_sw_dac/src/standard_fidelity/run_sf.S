@@ -1,4 +1,4 @@
-// Copyright 2024-2025 XMOS LIMITED.
+// Copyright 2024-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
 #include <xs1.h>
     
@@ -52,14 +52,8 @@ FUNCTION_NAME:
     ldw  r7, r0[SDAC_OUT_PORTS_L]
     ldw  r8, r0[SDAC_OUT_PORTS_R]
     
-<<<<<<< HEAD
     // Fill the ports with data, but clock not started yet
     ldw r11, r0[SDAC_TIMEOUT_WORD]
-=======
-    // Fill the ports with data
-    ldap r11, idle_word
-    ldw r11, r11[0]
->>>>>>> develop
     out res[r7], r11
     out res[r8], r11
 
@@ -72,7 +66,27 @@ FUNCTION_NAME:
     
     bl  sigma_delta_1_5_bespoke_abi
     
-.exit2:
+.exit1:
+    // Drain channel of data tokens using select/default case method
+    clre
+    eeu res[r0]
+    ldap r11, .Lconsume_token
+    setv res[r0], r11
+    bu .Ldefault_check
+
+.Lconsume_token:
+    in r11, res[r0]
+
+    // Turn events on/off to see if we have a channel token available
+.Ldefault_check:
+    setsr 0x1
+    nop     // Enough time to vector to event if token present
+    clrsr 0x1
+
+.Lexit2:
+    // Disable channel event
+    edu res[r0]
+    // Restore registers and return
     ldd r4, r5, sp[0]
     ldd r6, r7, sp[1]
     ldd r8, r9, sp[2]
@@ -81,6 +95,3 @@ FUNCTION_NAME:
     retsp NSTACKWORDS
     
     .cc_bottom FUNCTION_NAME.function
-
-idle_word:
-    .word 0x0ff00ff00 // 50% duty x2 16b words
