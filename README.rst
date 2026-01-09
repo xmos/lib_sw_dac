@@ -31,9 +31,9 @@ Known issues
 
 * Fixed configuration only currently (SF = Standard Fidelity)
 * The API requires that the software DAC is continually fed samples at the input
-  sample rate. Failure to do so will result in full scale outputs glitches. Please
+  sample rate. Failure to do so will result in full scale DC output. Please
   ensure your application disables the hardware output stage before stopping
-  feeding samples.
+  feeding samples to the software DAC.
 
 ****************
 Development repo
