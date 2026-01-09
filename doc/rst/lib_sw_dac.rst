@@ -127,6 +127,8 @@ is even, then the two middle values will be +/-0.5, and the values -1.5,
     At power on, the ``xcore.ai`` GPIO ports are set to high impedance with a
     weak pull-down enabled. This will define the initial state of the output 
     ports until the software DAC is configured and operating.
+    The hardware **must** be designed so that power output stage is disabled
+    during this state to avoid damaging the load.
 
 
 Master clock frequency
@@ -237,9 +239,27 @@ either:
 
 * Directly drive a class-D style amplifier (H-bridge)
 
-It is recommended to use a low-pass filter if driving a head-phone amplifier.
+It is recommended to use a low-pass filter if driving a head-phone amplifier to filter high frequency signal components.
 Depending on the required output bandwidth, a second order, linear-phase low pass filter with a
 cut-off point between 24 kHz and 48 kHz may be suitable.
+
+.. caution::
+    The audio output is driven using a PWM on a GPIO pin. A DC level of 0 is represented by a 50% duty cycle output.
+    This means that, at any point, if the power output stage is enabled and the software DAC
+    is not operating, the output will be driven with full scale DC which may cause damage to the load (headphones, speakers, etc).
+
+    For a practical design, it means that the sequencing for powering up and down of the power stage
+    must be carefully designed so that full scale DC is never driven. The application note ``AN02020``
+    (Adding a software DAC to USB Audio) provides an example of this.
+
+    It is also highly recommended to enable the watchdog timer, which will trigger a hard reset to the
+    chip if it is not continually kicked. This will force the chip GPIOs to enter their default state (not driven with weak pull down)
+    and the hardware power output stage should be designed so that it is disabled when the GPIOs are in this state.
+    An API for the watchdog timer is provided in this library, see :ref:`watchdog_api<watchdog_api>`.
+
+    When developing, a software exception or even stopping the code using the debugger will also cause a full scale output to be driven.
+    During the development phase of a project using this library, the use of DC blocking capacitors and/or a current limited power supply is recommended.
+
 
 |newpage|
 
@@ -331,7 +351,7 @@ where `sf` means standard fidelity:
    :name: default_performance
 
    ================= =============== ===============
-   \                 Analog output   Digital output
+                     Analog output   Digital output
    ================= =============== ===============
    Dynamic Range      106.5 dB        122 dB
    THD                -117 dB         -122 dB

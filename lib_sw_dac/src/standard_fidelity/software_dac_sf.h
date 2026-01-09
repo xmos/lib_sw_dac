@@ -155,6 +155,9 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
  * zero sample rate will terminate the function.
  * This task internally spawns two threads.
  *
+ * Warning: The output power stage must never be enabled unless the sw_dac_sf is active.
+ * Failure to observe this will result in full scale DC being driven to the output.
+ *
  * Sample rates should only be changed after a sequence of zeroes has been sent through
  * the channel end, otherwise a big pop may happen.
  * 
