@@ -57,33 +57,31 @@ FUNCTION_NAME:
     out res[r7], r11
     out res[r8], r11
 
-    // Now start the clock block, it is on already and linked to the ports
+    // Now start the clock block, it is enabled already and linked to the ports
     ldw r11, r0[SDAC_CLOCK_BLOCK]
     setc res[r11], XS1_SETC_RUN_STARTR
 
-    // Finally initialise channel register for sigma_delta
+    // Finally initialise channel register for sigma_delta and start custom ABI SD/PWM task
     add  r0, r1, 0
     
     bl  sigma_delta_1_5_bespoke_abi
     
-.exit1:
+.Lexit_start:
     // Drain channel of data tokens using select/default case method
     clre
     eeu res[r0]
     ldap r11, .Lconsume_token
     setv res[r0], r11
     bu .Ldefault_check
-
 .Lconsume_token:
     in r11, res[r0]
-
     // Turn events on/off to see if we have a channel token available
 .Ldefault_check:
     setsr 0x1
-    nop     // Enough time to vector to event if token present
+    nop     // Enough time to vector to .Lconsume_token event if token present
     clrsr 0x1
 
-.Lexit2:
+.Lexit_final:
     // Disable channel event
     edu res[r0]
     // Restore registers and return

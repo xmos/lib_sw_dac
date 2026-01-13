@@ -80,9 +80,12 @@ void test_producer(sw_dac_sf_t *sd, chanend_t c_sd_in, int burn, int n_loops, in
         }
 
         if(loop_count == exit_at){
-            printstr("exit\n");
-            sd->running = 0;
-            hwtimer_delay(tmr, XS1_TIMER_MHZ * 100); // 100us before starting again to allow exit to be consumed
+            sd->running = 0;// SD will run until timeout and then send exit ack
+            // Do what the filter thread does on exit
+            chanend_check_control_token(c_sd_in, XS1_CT_END);
+            chanend_out_control_token(c_sd_in, XS1_CT_END);
+            // printstr("exit\n");
+
         }
 
         chanend_out_word(c_sd_in, (int) &data[idx][0]);
@@ -111,8 +114,9 @@ void sigma_delta_task_sf_delay_start(sw_dac_sf_t * sd, chanend_t c_sd){
     hwtimer_free(tmr);
     while(1){
         sigma_delta_task_sf(sd, c_sd);
-        printf("SD restart\n");
         sd->running = 1;
+        sd->timeout_resid = hwtimer_alloc(); // Need to do this as after exit b/c the timer is freed
+        printf("SD restart\n");
     }
 }
 

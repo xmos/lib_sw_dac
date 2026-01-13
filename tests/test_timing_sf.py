@@ -207,5 +207,3 @@ def test_thread_performance_sf(request, sample_rate, burn):
     assert math.isclose(pcm_rate_hz, sample_rate, rel_tol=0.001), f"PCM rate not achieved: {pcm_rate_hz:.2f} ({sample_rate})"
     min_pause_pc = 5.0 # Generous min pause percentage
     assert sd_0_pause_pc > min_pause_pc, f"Filter pause %age not achieved: {sd_0_pause_pc:.2f} ({min_pause_pc})"
-    
-    

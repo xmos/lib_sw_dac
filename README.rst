@@ -30,10 +30,9 @@ Known issues
 ************
 
 * Fixed configuration only currently (SF = Standard Fidelity)
-* The API requires that the software DAC is continually fed samples at the input
-  sample rate. Failure to do so will result in full scale DC output. Please
-  ensure your application disables the hardware output stage before stopping
-  feeding samples to the software DAC.
+* The API assumes that the software DAC is continually fed samples at the input
+  sample rate. Please ensure your application mutes/disables the hardware output stage
+  before stopping sending of samples to the software DAC.
 
 ****************
 Development repo
@@ -61,7 +60,7 @@ The following application notes use this library:
 
 * AN02020: Adding a software DAC to USB Audio
 
-Please also see the /examples directory for simpler usage examples.
+Please also see the /examples directory for a minimal usage example.
 
 *******
 Support

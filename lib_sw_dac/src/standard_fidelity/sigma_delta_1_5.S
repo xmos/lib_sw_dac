@@ -116,7 +116,7 @@ FUNCTION_NAME:
     // Note this isn't perfect - the port buffer will empty before next timeout
     // However since this is a bad situation anyway (output should have been muted if expected)
     // and the timeout word is inverted so we will have continuous activity on the port and near 50% duty
-    // so it will avert issues where the SD is not fed which result in toasting the amplifier
+    // so it will avoid issues where the SD is not fed which result in toasting the amplifier
     syncr res[r7]                            // Ensure we have space in port buffers 
     syncr res[r8]
     setc res[r6], XS1_SETC_RUN_STOPR         // Stop clock so we can pre-load both ports
