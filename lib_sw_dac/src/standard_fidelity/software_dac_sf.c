@@ -438,6 +438,9 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
                 // Send stop signal to sigma-delta task first
                 // It will timeout and then read this val and exit
                 sd->running = 0;
+                // Clear channel path. Wait for sd/pwm first
+                chanend_check_control_token(c_out, XS1_CT_END);
+                chanend_out_control_token(c_out, XS1_CT_END);
                 return;
             }
         }
@@ -509,6 +512,13 @@ void sigma_delta_task_sf(sw_dac_sf_t *sd, chanend_t c_in) {
     
     // Enter SD loop
     sigma_delta_1_5(sd, c_in);
+
+    // Clear channel down safely
+    chanend_out_control_token(c_in, XS1_CT_END);
+    chanend_check_control_token(c_in, XS1_CT_END);
+
+    // Free timeout resid allocated during init
+    hwtimer_free(sd->timeout_resid);
 }
 
 void sw_dac_sf(sw_dac_sf_t *sd, chanend_t c_in) {
@@ -518,4 +528,6 @@ void sw_dac_sf(sw_dac_sf_t *sd, chanend_t c_in) {
         PJOB(filter_task,           (sd, c_in, c.end_a)),
         PJOB(sigma_delta_task_sf,   (sd, c.end_b))
         );
+
+    chan_free(c);
 }
