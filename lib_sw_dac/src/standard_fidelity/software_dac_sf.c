@@ -7,6 +7,7 @@
 #include <xcore/port.h>
 #include <xcore/clock.h>
 #include <xcore/channel.h>
+#include <xcore/select.h>
 #include <xcore/parallel.h>
 #include "software_dac_sf.h"
 #include "sdac_sf.h"
@@ -14,6 +15,8 @@
 #include "sw_dac_conf_default.h"
 #include "pre_distort.h"
 
+// Assembly kernel that runs the sigma-delta.
+void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
 
 static void init_ports(port_t dac_ports[2], xclock_t clk) {
     for(int i = 0; i < 2; i++) {
@@ -38,9 +41,14 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
                     float p_x2, float p_x3)
 {
     memset(sd, 0, sizeof(*sd));
-#if !defined(SW_DAC_SD_TEST_MODE)
+#if !SW_DAC_SD_TEST_MODE
     init_ports(dac_ports, clk);
 #endif
+    sd->timeout_period = 70;    // at 1.5MHz this will be 66.666 so set slightly above
+    sd->timeout_word = 0x0ff00ff0;  // 50% duty cycle 16b word normally but full 32b version here for startup
+    sd->timeout_resid = hwtimer_alloc();
+    sd->timeout_occurred = 0;
+    sd->running = 1;
     sd->clock_block = clk;
     memcpy(&sd->out_ports[0], dac_ports, 2 * sizeof(port_t));
     sd->sd_coeffs = &sd_coeffs[0][0];
@@ -99,7 +107,7 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (1 << (2*pwm_max)) | (mask << (1 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
             printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
 #endif
         }
@@ -111,15 +119,15 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
             uint64_t mask_reversed = mask << (2*pwm_max-(i+pwm_max));
             first_64 = mask_reversed | (3 << (2*pwm_max)) | (mask << (2 + 2*pwm_max));
             sd->pwm_lookup[i] = first_64;
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
             printf("PWM %d:0x%08x\n", i, (int) sd->pwm_lookup[i]);
 #endif
         }
     }
 }
 
-DECLARE_JOB(filter_task,      (sw_dac_sf_t *, chanend_t, chanend_t));
-DECLARE_JOB(sigma_delta_task, (sw_dac_sf_t *, chanend_t));
+DECLARE_JOB(filter_task,            (sw_dac_sf_t *, chanend_t, chanend_t));
+DECLARE_JOB(sigma_delta_task_sf,    (sw_dac_sf_t *, chanend_t));
 
 static inline int filter_x125_64_i16_o32_n16_phased(sw_dac_sf_t *sd, int32_t *output, int32_t samples[16]) {
     switch(sd->bank) {
@@ -419,83 +427,107 @@ void filter_task(sw_dac_sf_t *sd, chanend_t c_in, chanend_t c_out) {
     data[3][SDAC_BUF_N] = 32;
     chanend_out_word(c_out, (int) &data[3][0]);
     int i = 0;
+
     while(1) {
-            if (chanend_test_control_token_next_byte(c_in)) {
-                chanend_check_control_token(c_in, XS1_CT_END);
-                sample_rate = chanend_in_word(c_in);
-                sd->bank = 0;  // This is safe for all filters.
+        if (chanend_test_control_token_next_byte(c_in)) {
+            chanend_check_control_token(c_in, XS1_CT_END);
+            sample_rate = chanend_in_word(c_in);
+            sd->bank = 0;  // This is safe for all filters.
+
+            if(sample_rate == 0){
+                // Send stop signal to sigma-delta task first
+                // It will timeout and then read this val and exit
+                sd->running = 0;
+                // Clear channel path. Wait for sd/pwm first
+                chanend_check_control_token(c_out, XS1_CT_END);
+                chanend_out_control_token(c_out, XS1_CT_END);
+                return;
             }
-            int32_t dataL = chanend_in_word(c_in);
-            dataL >>= FILTER_HEADROOM;
-            int32_t dataR = chanend_in_word(c_in);
-            dataR >>= FILTER_HEADROOM;
+        }
+        int32_t dataL = chanend_in_word(c_in);
+        dataL >>= FILTER_HEADROOM;
+        int32_t dataR = chanend_in_word(c_in);
+        dataR >>= FILTER_HEADROOM;
 
-            int n, highest_bank;
-            switch(sample_rate) {
-            case 48000:
-                n = filter_x125_4(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x125_4(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 4;
-                break;
-            case 96000:
-                n = filter_x125_8(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x125_8(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 8;
-                break;
-            case 192000:
-                n = filter_x125_16(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x125_16(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 16;
-                break;
-            case 44100:
-                n = filter_x5000_147(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x5000_147(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 147;
-                break;
-            case 88200:
-                n = filter_x2500_147(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x2500_147(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 147;
-                break;
-            case 176400:
-                n = filter_x1250_147(sd, sd->pre_distort_in[0], 0, dataL);
-                (void) filter_x1250_147(sd, sd->pre_distort_in[1], 1, dataR);
-                highest_bank = 147;
-                break;
-            }
-            int oindex = SDAC_BUF_L;
+        int n, highest_bank;
+        switch(sample_rate) {
+        case 48000:
+            n = filter_x125_4(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x125_4(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 4;
+            break;
+        case 96000:
+            n = filter_x125_8(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x125_8(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 8;
+            break;
+        case 192000:
+            n = filter_x125_16(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x125_16(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 16;
+            break;
+        case 44100:
+            n = filter_x5000_147(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x5000_147(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 147;
+            break;
+        case 88200:
+            n = filter_x2500_147(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x2500_147(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 147;
+            break;
+        case 176400:
+            n = filter_x1250_147(sd, sd->pre_distort_in[0], 0, dataL);
+            (void) filter_x1250_147(sd, sd->pre_distort_in[1], 1, dataR);
+            highest_bank = 147;
+            break;
+        }
 
-            for(int c = 0; c < 2; c++) {
-                pre_distort(&data[i][oindex],
-                            sd->pre_distort_in[c],
-                            sd->pre_distort_pwm_comp_history[c],
-                            sd->pre_distort_flat_comp_history[c],
-                            sd->comp_px3_px2_fx2_fx3,
-                            n,
-                            sd->scale);
+        int oindex = SDAC_BUF_L;
 
-                oindex = SDAC_BUF_R;
-            }
-            int new_bank = sd->bank + 1;
-            if (new_bank== highest_bank) new_bank = 0;
-            sd->bank = new_bank;
-            data[i][SDAC_BUF_N] = n;
+        for(int c = 0; c < 2; c++) {
+            pre_distort(&data[i][oindex],
+                        sd->pre_distort_in[c],
+                        sd->pre_distort_pwm_comp_history[c],
+                        sd->pre_distort_flat_comp_history[c],
+                        sd->comp_px3_px2_fx2_fx3,
+                        n,
+                        sd->scale);
 
-            chanend_out_word(c_out, (int) &data[i][0]);
-            i = (i + 1) & 3;
+            oindex = SDAC_BUF_R;
+        }
+        int new_bank = sd->bank + 1;
+        if (new_bank== highest_bank) new_bank = 0;
+        sd->bank = new_bank;
+        data[i][SDAC_BUF_N] = n;
+
+        chanend_out_word(c_out, (int) &data[i][0]);
+        i = (i + 1) & 3;
     }
-    chanend_out_control_token(c_out, 1);
 }
 
-void sigma_delta_task(sw_dac_sf_t *sd, chanend_t c_in) {
+
+void sigma_delta_task_sf(sw_dac_sf_t *sd, chanend_t c_in) {
+    hwtimer_set_trigger_time(sd->timeout_resid, hwtimer_get_time(sd->timeout_resid) + sd->timeout_period + 500); // Allow some extra cycles for entry
+    
+    // Enter SD loop
     sigma_delta_1_5(sd, c_in);
+
+    // Clear channel down safely
+    chanend_out_control_token(c_in, XS1_CT_END);
+    chanend_check_control_token(c_in, XS1_CT_END);
+
+    // Free timeout resid allocated during init
+    hwtimer_free(sd->timeout_resid);
 }
 
 void sw_dac_sf(sw_dac_sf_t *sd, chanend_t c_in) {
     channel_t c = chan_alloc();
 
     PAR_JOBS(
-        PJOB(filter_task,       (sd, c_in, c.end_a)),
-        PJOB(sigma_delta_task,  (sd, c.end_b))
+        PJOB(filter_task,           (sd, c_in, c.end_a)),
+        PJOB(sigma_delta_task_sf,   (sd, c.end_b))
         );
+
+    chan_free(c);
 }

@@ -11,6 +11,7 @@
 #include "sw_dac.h"
 
 
+
 volatile int clk_ready = 0;
 
 // Producer runs at full speed in this test so is throttled by downstream
@@ -97,6 +98,10 @@ void burn(void){
 
 
 int main(int argc, char *argv[]) {
+    if(argc != 5){
+        printf("Error - need to pass <sample_rate>, <burn> and <n_loops> as args. Got %d args.\n", argc);
+        _Exit(-1);
+    }
     int sample_rate = atoi(argv[1]);
     int burn = atoi(argv[2]);
     int n_loops = atoi(argv[3]);
@@ -117,7 +122,7 @@ int main(int argc, char *argv[]) {
                     1.0/120000, -1.0/250000,   // flat_comp_x2, x3
                     3.0/157, 0.63/157);        // pwm comp x2, x3
 
-    printf("Started test app sr: %d, burn: %d, loops: %d\n", sample_rate, burn, n_loops);
+    printf("Started test app sr: %d, burn: %d, n_loops: %d\n", sample_rate, burn, n_loops);
 
     if(burn){
     PAR_JOBS(

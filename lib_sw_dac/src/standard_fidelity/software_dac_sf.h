@@ -5,6 +5,7 @@
 #include <xcore/clock.h>
 #include <xcore/port.h>
 #include <xcore/chanend.h>
+#include <xcore/hwtimer.h>
 #include <xcore/parallel.h>
 
 #ifndef __software_dac_sf_h__
@@ -31,6 +32,11 @@ typedef struct {
     xclock_t clock_block;
     int *sd_coeffs;
     port_t out_ports[CHANNELS];
+    int timeout_period;
+    int timeout_word;
+    hwtimer_t timeout_resid;
+    int timeout_occurred;
+    int running;    // Used for exiting the DAC cleanly
 
     // Upsampling filters
     int32_t *filter0[CHANNELS];
@@ -100,10 +106,11 @@ typedef struct {
  *
  * \param   dac_ports   Array of two port identifiers. The ports should not be
  *                      initialised or enabled. Ie, just pass {XS1_PORT_1B, XS1_PORT_1A}
- *                      from C
+ *                      from the C source code.
  *
- * \param   clk         A clock block for the software DAC to use. It will run
- *                      at 50 MHz but will not be started until the DAC is running.
+ * \param   clk         A clock block for the software DAC to use. It should be connected
+ *                      to an external 24 MHz clock by the user before init but it will 
+ *                      not be started (inside the sw_dac_sf function) until the DAC is operating.
  *
  * \param   max_pwm     number of levels in PWM. Set to an even number to use half
  *                      levels and maximum dynamic range
@@ -146,9 +153,14 @@ void sw_dac_sf_init(sw_dac_sf_t *sd,
 /**
  * Function that runs a software DAC. Samples are provided over the channel end.
  * The default sample rate is 48,000 Hz. The sample rate may be changed by sending
- * an END token into the channel end followed by the new sample rate. Sending a
- * zero sample rate will terminate the function.
+ * an END token into the channel end followed by the new sample rate.
+ * 
  * This task internally spawns two threads.
+ *
+ * Sending a zero sample rate will terminate both threads and will deallocate all 
+ * internally allocated chip resources. It is essential that 
+ * sw_dac_sf_init() is called before attempting to restart this function following
+ * the exit to ensure that the needed resources are re-allocated.
  *
  * Warning: The output power stage must never be enabled unless the sw_dac_sf is active.
  * Failure to observe this will result in full scale DC being driven to the output.
@@ -168,9 +180,6 @@ void sw_dac_sf(sw_dac_sf_t *sd, chanend_t ce);
 #else
 DECLARE_JOB(sw_dac_sf, (sw_dac_sf_t *, chanend_t)); // Allow calling from PAR_JOB
 #endif
-/**
- * Assembly kernel that runs the sigma-delta.
- */
-void sigma_delta_1_5(sw_dac_sf_t *sd, chanend_t ce); // does not return
+
 
 #endif

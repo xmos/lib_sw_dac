@@ -1,6 +1,14 @@
 lib_sw_dac change log
 =====================
 
+1.0.0
+-----
+
+  * First public release
+  * FIXED: PWM outputs DC level zero when not fed with samples
+  * FIXED: PWM left and right outputs remain synchronised
+  * FIXED: Sending 0 sample rate now quits Software DAC
+
 0.2.0
 -----
 

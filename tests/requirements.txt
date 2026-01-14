@@ -19,8 +19,8 @@
 # same modules should appear in the setup.py list as given below.
 pytest==8.3.3
 pytest-xdist==3.6.1
+pytest-timeout==2.4.0
 filelock==3.19.1
-numpy==2.3.2
 scipy==1.16.1
 
 # Development dependencies
@@ -37,3 +37,5 @@ scipy==1.16.1
 # setup.py file, e.g., '-e .' or '-e ./python' (without the quotes).
 
 -e git+ssh://git@github.com/xmos/test_support.git@v2.0.0#egg=test_support
+# Head of develop as of 14th nov with THDN script just merged. This can be moved on when released
+-e git+ssh://git@github.com/xmos/audio_test_tools.git@ab4d121e0b19fb6fbef6ad88a532afc152398f31#egg=audio_test_tools&subdirectory=python

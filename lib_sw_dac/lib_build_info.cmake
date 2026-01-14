@@ -1,6 +1,6 @@
 set(LIB_NAME 					lib_sw_dac)
 
-set(LIB_VERSION 				0.2.0)
+set(LIB_VERSION 				1.0.0)
 
 set(LIB_INCLUDES 				api
 								src

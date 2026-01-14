@@ -6,7 +6,7 @@
 
 #include "sdac_sf.h"
 
-#define NSTACKWORDS     18
+#define NSTACKWORDS     20
 #define FUNCTION_NAME sigma_delta_1_5
 
     .cc_top FUNCTION_NAME.function
@@ -31,8 +31,19 @@ FUNCTION_NAME:
     stw r10, sp[6]
     stw dp, sp[7]
 
-    // Initialise registers for sigma_delta_1_5
+    // Now store select info for the timeout and copy to stack for easier access
+    stw r0, sp[SDAC_STACK_SD_STRUCT_BASE] // Store sd struct addr
+    ldw r4, r0[SDAC_TIMEOUT_PERIOD]
+    stw r4, sp[SDAC_STACK_TIMEOUT_PERIOD]
+    ldw r4, r0[SDAC_TIMEOUT_RESID]
+    stw r4, sp[SDAC_STACK_TIMEOUT_RESID]
+    ldw r4, r0[SDAC_TIMEOUT_WORD]
+    stw r4, sp[SDAC_STACK_TIMEOUT_WORD]
+    ldw r4, r0[SDAC_CLOCK_BLOCK]
+    stw r4, sp[SDAC_STACK_TIMEOUT_CLKBLK]
     
+
+    // Initialise registers for sigma_delta_1_5
     ldw  r10, r0[SDAC_PWM_LOOKUP]
     ldw  r4, r0[SDAC_SD_COEFFS]
     ldw  r5, r0[SDAC_SD_STATE_L]
@@ -41,22 +52,39 @@ FUNCTION_NAME:
     ldw  r7, r0[SDAC_OUT_PORTS_L]
     ldw  r8, r0[SDAC_OUT_PORTS_R]
     
-    // Fill the ports with data
-    ldap r11, idle_word
-    ldw r11, r11[0]
+    // Fill the ports with data, but clock not started yet
+    ldw r11, r0[SDAC_TIMEOUT_WORD]
     out res[r7], r11
     out res[r8], r11
 
-    // Now start the clock block, it is on already and linked to the ports
+    // Now start the clock block, it is enabled already and linked to the ports
     ldw r11, r0[SDAC_CLOCK_BLOCK]
     setc res[r11], XS1_SETC_RUN_STARTR
 
-    // Finally initialise channel register for sigma_delta
+    // Finally initialise channel register for sigma_delta and start custom ABI SD/PWM task
     add  r0, r1, 0
     
-    bl  sigma_delta_1_5_bespoke_abi 
+    bl  sigma_delta_1_5_bespoke_abi
     
-.exit2:
+.Lexit_start:
+    // Drain channel of data tokens using select/default case method
+    clre
+    eeu res[r0]
+    ldap r11, .Lconsume_token
+    setv res[r0], r11
+    bu .Ldefault_check
+.Lconsume_token:
+    in r11, res[r0]
+    // Turn events on/off to see if we have a channel token available
+.Ldefault_check:
+    setsr 0x1
+    nop     // Enough time to vector to .Lconsume_token event if token present
+    clrsr 0x1
+
+.Lexit_final:
+    // Disable channel event
+    edu res[r0]
+    // Restore registers and return
     ldd r4, r5, sp[0]
     ldd r6, r7, sp[1]
     ldd r8, r9, sp[2]
@@ -65,6 +93,3 @@ FUNCTION_NAME:
     retsp NSTACKWORDS
     
     .cc_bottom FUNCTION_NAME.function
-
-idle_word:
-    .word 0x0ff00ff00 // 50% duty x2 16b words

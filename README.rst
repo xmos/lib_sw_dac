@@ -5,35 +5,34 @@ lib_sw_dac: Software DAC
 ########################
 
 :vendor: XMOS
-:version: 0.2.0
-:scope: Demo
+:version: 1.0.0
+:scope: General Use
 :description: Software DAC for xcore.ai
 :category: Audio
-:keywords: DAC, DSP
+:keywords: DAC
 :devices: xcore.ai
 
 *******
 Summary
 *******
 
-Software DAC for xcore comprising of upsampling, sigma-delta modulator and PWM generation.
+Software DAC for ``xcore.ai`` comprising of upsampling, sigma-delta modulator and PWM generation.
 
 ********
 Features
 ********
 
-* Supports 48000, 96000 and 192000 Hz sample rate, stereo output
-* Uses two hardware threads, two one-bit ports, one clock-block and 32 kB of RAM
+* Supports 44100, 48000, 88200, 96000 and 176400 & 192000 Hz sample rate, stereo output
+* Uses two hardware threads, two one-bit ports, one timer, one clock-block and 32 kB of RAM
 
 ************
 Known issues
 ************
 
 * Fixed configuration only currently (SF = Standard Fidelity)
-* The API requires that the software DAC is continually fed samples at the input
-  sample rate. Failure to do so will result in full scale DC output. Please
-  ensure your application disables the hardware output stage before stopping
-  feeding samples to the software DAC.
+* The API assumes that the software DAC is continually fed samples at the input
+  sample rate. Please ensure your application mutes/disables the hardware output stage
+  before stopping sending of samples to the software DAC.
 
 ****************
 Development repo
@@ -61,7 +60,7 @@ The following application notes use this library:
 
 * AN02020: Adding a software DAC to USB Audio
 
-Please also see the /examples directory for simpler usage examples.
+Please also see the /examples directory for a minimal usage example.
 
 *******
 Support

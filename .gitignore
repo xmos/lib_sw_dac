@@ -49,3 +49,4 @@ tests/trace.txt
 # editor
 **/.vscode
 */trace.gtkw
+tests/*.gtkw

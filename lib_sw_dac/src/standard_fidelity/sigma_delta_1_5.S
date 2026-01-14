@@ -1,7 +1,8 @@
 // Copyright 2024-2026 XMOS LIMITED.
 // This Software is subject to the terms of the XMOS Public Licence: Version 1.
+#include <xs1.h>
 #include "sdac_sf.h"
-    
+
 #define FUNCTION_NAME sigma_delta_1_5_bespoke_abi
 
 #define FRACTIONAL_BITS              28    // TODO: modified software_dac_sf.c scale2 in sync
@@ -11,7 +12,6 @@
 
     .issue_mode dual
     // Used in loop          r0, dp, r9
-    // Not in use            r2
     // Scratch registers:    r11 r6
     // Channel independent
     //   PWM table    r10
@@ -27,14 +27,31 @@
     .linkset FUNCTION_NAME.nstackwords, 0
     .align 16
 FUNCTION_NAME:
-    { ldc r11, 0                ; nop }
-    { in r11, res[r0]            ; vsetc r11 }
+// Init VPU and the select statement
+    { ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]; ldc r11, 0  }
+    { vsetc r11                 ; ldap r11, .Lsd_timeout }
+
+    { setv res[r6], r11         ; ldap r11, .Linput_handler}
+    eeu res[r6]; // enable
+
+    setv res[r0], r11;
+    eeu res[r0]; // enable
+
+    waiteu; // This does the initial IN or timeout
+    
+// Main loop
 .Louter_loop:
-    { set dp, r11                ; nop }
-    { ldw r9, dp[SDAC_BUF_N]    ; nop }
-    nop
+.Linput_handler:
+    // This section inits the DP, loads nsamp and moves on the timeout timer according to nsamp
+    // We have r11, r6 and also r1 is available in this stage until the inner loop
+    { in r11, res[r0]           ; ldw r1, sp[SDAC_STACK_TIMEOUT_PERIOD]}    // Grab input data pointer from filter + load timeout time period
+    { ldw r9, r11[SDAC_BUF_N]   ; gettime r6}                               // Get number of samples, Read timer value (we know all timers are same val)
+    mul r1, r1, r9                                                          // mul timeout time by num samples to receive (inner loop count)
+    { ldw r6, sp[SDAC_STACK_TIMEOUT_RESID] ; add r1, r1, r6;}               // Copy input token (sf ptr) to DP for later use & move on timer time
+    { set dp, r11               ; setd res[r6], r1}                         // Move time trigger forwards, and init the DP for later use
+
 .Linner_loop:
-    { ldw r1, dp[SDAC_BUF_L]     ; sub r9, r9, 1 }
+    { ldw r1, dp[SDAC_BUF_L]    ; sub r9, r9, 1 }
 
 // Left channel:
     { stw r1, r5[0]             ; ldc r11, 31 }             // Store input value into state vector
@@ -42,7 +59,7 @@ FUNCTION_NAME:
     { vclrdr                    ; nop         } 
     { ldw  r1, r11[r1]          ; ldc r11, FRACTIONAL_BITS} // clip value to [-5..5] and quantise
     ashr r6, r1, r11                                        // Make into a fixed point value and sign extend for PWM
-    { stw r1, r5[1]             ; ldc r1, 8       }             // Store feedback
+    { stw r1, r5[1]             ; ldc r1, 8       }         // Store feedback
     { vldc r5[0]                ; add r1, r5, r1  }
     { vlmaccr r4[0]             ; add r4, r4, r3 }
     { vlmaccr r4[0]             ; add r4, r4, r3 }
@@ -53,7 +70,7 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
     out res[r7], r1
 #else
     outpw res[r7], r1, 16
@@ -77,14 +94,58 @@ FUNCTION_NAME:
     { vlsat r11[0]              ; shl r11, r3, 2 }
     { vstr r1[0]                ; sub r4, r4, r11 }
     { ldw   r1, r10[r6]         ; sub r4, r4, r3 }
-#if defined(SW_DAC_SD_TEST_MODE)
+#if SW_DAC_SD_TEST_MODE
     out res[r8], r1
 #else
     outpw res[r8], r1, 16
 #endif
     
     { bt  r9, .Linner_loop       ; ldaw dp, dp[SDAC_BUF_STEP] }
-    { bu  .Louter_loop           ; in r11, res[r0] }
+    waiteu
+
+    // Select handler for timeout. This does not need to speed optimised
+    .align 8
+.Lsd_timeout:
+    // Get the out dummy word, output it and then invert it to avoid DC output content
+    ldw r11, sp[SDAC_STACK_TIMEOUT_WORD]
+    ldw r6, sp[SDAC_STACK_TIMEOUT_CLKBLK]
+#if SW_DAC_SD_TEST_MODE
+    out res[r7], r11
+    out res[r8], r11
+#else
+    // Note this isn't perfect - the port buffer will empty before next timeout
+    // However since this is a bad situation anyway (output should have been muted if expected)
+    // and the timeout word is inverted so we will have continuous activity on the port and near 50% duty
+    // so it will avoid issues where the SD is not fed which result in toasting the amplifier
+    syncr res[r7]                            // Ensure we have space in port buffers 
+    syncr res[r8]
+    setc res[r6], XS1_SETC_RUN_STOPR         // Stop clock so we can pre-load both ports
+    out res[r7], r11
+    out res[r8], r11
+    setc res[r6], XS1_SETC_RUN_STARTR        // Start the clock outputs will be sync'ed until empty
+#endif
+    not r11, r11;
+    stw r11, sp[SDAC_STACK_TIMEOUT_WORD];
+
+
+    // Move the timeout timer on by at least one PWM period. We may come back here if no IN from filter
+    { gettime r11               ; ldw r6, sp[SDAC_STACK_TIMEOUT_PERIOD]}
+    { add r11, r11, r6          ; ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]}
+    { setd res[r6], r11         ; ldc r11, 0x1;} // Move time trigger forwards and load timeout flag
+    
+    // Access struct ptr and set new timeout + check to see if running
+    ldw r6, sp[SDAC_STACK_SD_STRUCT_BASE]
+    stw r11, r6[SDAC_TIMEOUT_OCCURED]
+    ldw r11, r6[SDAC_RUNNING]
+    bf r11, .Lsd_exit
+    waiteu
+
+.Lsd_exit:
+    // Disable events on channel and timer
+    { edu res[r0] ; ldw r6, sp[SDAC_STACK_TIMEOUT_RESID]}
+    edu res[r6]
+    retsp 0 // Return. Note at this point we may still have data tokens in channel so need to drain in C
+
     .align 4
 
 #define F(x) ((x)<<(FRACTIONAL_BITS - 1))
