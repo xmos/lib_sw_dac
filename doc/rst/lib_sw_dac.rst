@@ -386,6 +386,15 @@ These noise sources may include but are not limited to:
 * Noise of analog components (resistors, capacitors, op-amps), you can
   reduce these by using more expensive components.
 
+* Beat frequencies between the Master clock and the processor clock. You can
+  avoid these by setting the processor to execute at 600.6 Mhz rather than
+  600MHz. In the XN file this would, for example, look like this::
+
+    <Packages>
+      <Package id="0" Type="XS3-UnA-1024-QF60B">
+        <Nodes>
+          <Node Id="0" InPackageId="0" Type="XS3-L16A-1024" Oscillator="24MHz" SystemFrequency="600600kHz" ReferenceFrequency="100100kHz">
+
 Harmonics (of the input signal)
 -------------------------------
 
